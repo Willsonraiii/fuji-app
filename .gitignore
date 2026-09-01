@@ -1,0 +1,10 @@
+# Vercel
+.vercel
+
+# Node
+node_modules
+
+# Dev artifacts
+tools
+smoke
+preview

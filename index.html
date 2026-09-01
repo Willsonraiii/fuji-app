@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="F-UJI" />
+  <meta name="theme-color" content="#0b0b0d" />
+  <meta name="description" content="Professional film color for iPhone. Edit, simulate film, export." />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <title>F-UJI — Professional Film Color</title>
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body data-view="home">
+  <div id="app">
+
+    <!-- ===================== HOME / EMPTY SCREEN ===================== -->
+    <section id="home" class="screen">
+      <div class="home-inner">
+        <div class="logo-block">
+          <div class="logo-mark">F‑UJI</div>
+          <div class="logo-tag">Professional Film Color for iPhone</div>
+        </div>
+        <div class="home-actions">
+          <button id="scan-import" class="btn-import" type="button">
+            <span class="btn-import-icon">＋</span>
+            <span class="btn-import-label">Import a photo</span>
+          </button>
+          <button id="btn-open-picker" class="btn-secondary" type="button">Choose from Photos</button>
+        </div>
+        <div class="home-foot">
+          <p>Photos stay on your device. No account. No uploads.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== EDITOR SCREEN ===================== -->
+    <section id="editor" class="screen hidden">
+      <header id="editor-top">
+        <div class="brand"><span class="brand-letter">F‑</span>UJI</div>
+        <div class="top-actions">
+          <button id="btn-import-top" class="icon-btn" title="Import another photo" aria-label="Import">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          </button>
+          <button id="btn-undo" class="icon-btn" title="Undo" aria-label="Undo">
+            <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+          </button>
+          <button id="btn-redo" class="icon-btn" title="Redo" aria-label="Redo">
+            <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+          </button>
+          <button id="btn-export" class="export-btn" title="Export" aria-label="Export">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="stage">
+        <canvas id="view-canvas"></canvas>
+        <canvas id="orig-canvas"></canvas>
+        <div id="crop-overlay" class="hidden">
+          <div class="crop-mask crop-mask-t"></div>
+          <div class="crop-mask crop-mask-b"></div>
+          <div class="crop-mask crop-mask-l"></div>
+          <div class="crop-mask crop-mask-r"></div>
+          <div class="crop-frame"></div>
+          <div class="crop-handle nw" data-h="nw"></div>
+          <div class="crop-handle ne" data-h="ne"></div>
+          <div class="crop-handle sw" data-h="sw"></div>
+          <div class="crop-handle se" data-h="se"></div>
+        </div>
+        <div id="stage-meta">
+          <span id="meta-zoom" class="meta-chip"></span>
+          <span id="meta-res" class="meta-chip"></span>
+        </div>
+        <!-- Before / after -->
+        <div id="ba-mode"></div>
+        <div id="split-handle" class="hidden"><span></span></div>
+      </div>
+
+      <!-- Bottom toolbar -->
+      <nav id="bottom-bar">
+        <div id="tool-strip" class="tool-strip"></div>
+      </nav>
+
+      <!-- Bottom sheet host -->
+      <div id="sheet-layer" class="sheet-layer hidden">
+        <div class="sheet-backdrop"></div>
+        <div id="sheet" class="sheet">
+          <div class="sheet-handle"></div>
+          <div id="sheet-body"></div>
+        </div>
+      </div>
+
+      <!-- Recipe sheet -->
+      <div id="recipe-layer" class="sheet-layer hidden">
+        <div class="sheet-backdrop"></div>
+        <div id="recipe-sheet" class="sheet taller">
+          <div class="sheet-handle"></div>
+          <div id="recipe-body"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Export sheet -->
+    <div id="export-layer" class="sheet-layer hidden">
+      <div class="sheet-backdrop"></div>
+      <div id="export-sheet" class="sheet">
+        <div class="sheet-handle"></div>
+        <div id="export-body"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <div id="spinner" class="spinner hidden"></div>
+    <input type="file" id="file-input" accept="image/*" hidden />
+  </div>
+
+  <script src="js/processing.js"></script>
+  <script src="js/profiles.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/recipes.js"></script>
+  <script src="js/fujiRecipes.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
