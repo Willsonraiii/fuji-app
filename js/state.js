@@ -4,7 +4,7 @@
 (function (global) {
   "use strict";
 
-  function hslDefault(){ return { hue:{r:0,g:0,b:0,m:0,y:0,c:0}, sat:{r:0,g:0,b:0,m:0,y:0,c:0}, luma:{r:0,g:0,b:0,m:0,y:0,c:0} }; }
+  function hslDefault(){ return { hue:{r:0,o:0,y:0,g:0,c:0,b:0,m:0,p:0}, sat:{r:0,o:0,y:0,g:0,c:0,b:0,m:0,p:0}, luma:{r:0,o:0,y:0,g:0,c:0,b:0,m:0,p:0} }; }
 
   function defaultState(){
     return {

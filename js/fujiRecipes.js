@@ -93,15 +93,20 @@
     'velvia': 'velvet50',
     'astia': 'astiagentle',
     'classic-chrome': 'chromedust',
-    'classic-negative': 'nostalgia',
+    'classic-negative': 'evergreen400',
     'nostalgic-neg': 'nostalgia',
     'eterna': 'neostage',
+    'eterna-bleach-bypass': 'eternableach',
     'acros': 'monomodern',
+    'acros-r': 'acros_r',
+    'acros-y': 'acros_y',
+    'acros-g': 'acros_g',
     'monochrome': 'monomodern',
     'reala-ace': 'realaauto',
-    'pro-neg-hi': 'proneg',
-    'pro-neg-std': 'proneg',
-    'sepia': 'nostalgia'
+    'pro-neg-hi': 'proneghi',
+    'pro-neg-std': 'pronegstd',
+    'pro-neg': 'proneg',
+    'sepia': 'sepiawarm'
   };
 
   /* ---- Convert a Fujifilm recipe to app state ---- */
@@ -461,15 +466,220 @@
         dynamicRange: 400,
         whiteBalance: 'Auto',
         wbShiftR: 0, wbShiftB: 0,
-        highlight: 0,
-        shadow: 0,
-        color: 0,
-        sharpness: 0,
-        highISONR: 0,
+        highlight: 0, shadow: 0, color: 0, sharpness: 0, highISONR: 0,
         grainEffect: 'weak', grainSize: 'small',
-        colorChromeEffect: 'off',
-        colorChromeFxBlue: 'off',
-        clarity: 0
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 0
+      }
+    },
+
+    /* ============== NEW (Slice 1) ============== */
+
+    /* --- Portra 400 Warm --- Source: Fuji X Weekly — Kodak Portra simulation */
+    {
+      id: 'portra400warm', name: 'Portra 400 Warm', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Warm Kodak Portra 400 negative look', filmSim: 'Classic Neg.', camera: 'X-Trans IV/V',
+      category: 'portrait', scene: ['portrait','indoor','golden'],
+      fuji: {
+        simulation: 'classic-negative', dynamicRange: 400,
+        whiteBalance: 'Auto', wbShiftR: 4, wbShiftB: -6,
+        highlight: -1, shadow: 2, color: 1, sharpness: -2, highISONR: -4,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'weak', colorChromeFxBlue: 'off', clarity: -2
+      }
+    },
+    /* --- Portra 800 Push --- Source: Fuji X Weekly */
+    {
+      id: 'portra800', name: 'Portra 800 Push', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Pushed Portra 800 with rich shadows', filmSim: 'Classic Neg.', camera: 'X-Trans V',
+      category: 'portrait', scene: ['portrait','night','indoor'],
+      fuji: {
+        simulation: 'classic-negative', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 3, wbShiftB: -5,
+        highlight: -1, shadow: 3, color: 2, sharpness: -1, highISONR: -4,
+        grainEffect: 'strong', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'weak', clarity: -1
+      }
+    },
+    /* --- Kodak Gold 200 --- Source: Fuji X Weekly */
+    {
+      id: 'kodakgold200', name: 'Kodak Gold 200', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Warm 90s Gold 200 nostalgia', filmSim: 'Classic Chrome', camera: 'X-Trans IV/V',
+      category: 'street', scene: ['street','daylight','urban'],
+      fuji: {
+        simulation: 'classic-chrome', dynamicRange: 200,
+        whiteBalance: 'Daylight', wbShiftR: 3, wbShiftB: -7,
+        highlight: -1, shadow: 1, color: 2, sharpness: 0, highISONR: -4,
+        grainEffect: 'strong', grainSize: 'small',
+        colorChromeEffect: 'weak', colorChromeFxBlue: 'off', clarity: 0
+      }
+    },
+    /* --- Ektar 100 --- Source: Fuji X Weekly */
+    {
+      id: 'ektar100', name: 'Ektar 100', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Saturated vivid chrome', filmSim: 'Velvia', camera: 'X-Trans IV/V',
+      category: 'landscape', scene: ['landscape','daylight','travel'],
+      fuji: {
+        simulation: 'velvia', dynamicRange: 100,
+        whiteBalance: 'Daylight', wbShiftR: 1, wbShiftB: -3,
+        highlight: -2, shadow: 1, color: 4, sharpness: 1, highISONR: -4,
+        grainEffect: 'off', grainSize: 'small',
+        colorChromeEffect: 'strong', colorChromeFxBlue: 'weak', clarity: 2
+      }
+    },
+    /* --- Tri-X 400 --- Source: Fuji X Weekly */
+    {
+      id: 'trix400', name: 'Tri-X 400', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Classic Kodak Tri-X push-processed', filmSim: 'Acros', camera: 'X-Trans IV/V',
+      category: 'street', scene: ['street','documentary','night'],
+      fuji: {
+        simulation: 'acros', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 0, wbShiftB: 0,
+        highlight: 2, shadow: 3, color: 0, sharpness: 2, highISONR: -4,
+        grainEffect: 'strong', grainSize: 'large',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 2
+      }
+    },
+    /* --- Ilford HP5+ --- Source: Fuji X Weekly */
+    {
+      id: 'hp5plus', name: 'Ilford HP5+', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Creamy Ilford HP5+ monochrome', filmSim: 'Acros', camera: 'X-Trans IV/V',
+      category: 'street', scene: ['portrait','documentary'],
+      fuji: {
+        simulation: 'acros', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 0, wbShiftB: 0,
+        highlight: 1, shadow: 2, color: 0, sharpness: 1, highISONR: -2,
+        grainEffect: 'strong', grainSize: 'large',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 0
+      }
+    },
+    /* --- Cinematic Bleach Bypass --- Source: Fuji X Weekly */
+    {
+      id: 'bleachbypass', name: 'Cinematic Bleach Bypass', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'High-contrast cinematic bleach bypass', filmSim: 'Eterna', camera: 'X-Trans IV/V',
+      category: 'cinematic', scene: ['portrait','night','urban'],
+      fuji: {
+        simulation: 'eterna', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 0, wbShiftB: -2,
+        highlight: 2, shadow: 3, color: -2, sharpness: 1, highISONR: -4,
+        grainEffect: 'strong', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'strong', clarity: 3
+      }
+    },
+    /* --- Pacific Blues --- Source: Fuji X Weekly */
+    {
+      id: 'pacificblues', name: 'Pacific Blues', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Cool blue coastal travel look', filmSim: 'Classic Chrome', camera: 'X-Trans IV/V',
+      category: 'travel', scene: ['landscape','travel','daylight'],
+      fuji: {
+        simulation: 'classic-chrome', dynamicRange: 400,
+        whiteBalance: 'Auto', wbShiftR: -2, wbShiftB: 4,
+        highlight: -1, shadow: 2, color: 2, sharpness: 0, highISONR: -4,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'weak', colorChromeFxBlue: 'strong', clarity: 1
+      }
+    },
+    /* --- Moody Autumn --- Source: Fuji X Weekly */
+    {
+      id: 'moodyautumn', name: 'Moody Autumn', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Desaturated autumn warmth', filmSim: 'Nostalgic Neg.', camera: 'X-Trans IV/V',
+      category: 'landscape', scene: ['landscape','golden'],
+      fuji: {
+        simulation: 'nostalgic-neg', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 4, wbShiftB: -3,
+        highlight: -1, shadow: 2, color: -1, sharpness: 0, highISONR: -4,
+        grainEffect: 'strong', grainSize: 'small',
+        colorChromeEffect: 'weak', colorChromeFxBlue: 'off', clarity: 0
+      }
+    },
+    /* --- Moody Forest --- Source: Fuji X Weekly */
+    {
+      id: 'moodyforest', name: 'Moody Forest', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Deep greens, low-key shadow look', filmSim: 'Classic Neg.', camera: 'X-Trans IV/V',
+      category: 'landscape', scene: ['landscape','nature'],
+      fuji: {
+        simulation: 'classic-negative', dynamicRange: 200,
+        whiteBalance: 'Daylight', wbShiftR: -1, wbShiftB: 1,
+        highlight: 0, shadow: 3, color: 0, sharpness: 0, highISONR: -4,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'weak', colorChromeFxBlue: 'weak', clarity: 1
+      }
+    },
+    /* --- Vintage Wedding --- Source: Photography Talk */
+    {
+      id: 'vintagewedding', name: 'Vintage Wedding', source: 'Photography Talk', author: 'Amy Porter',
+      tagline: 'Soft warm wedding portrait', filmSim: 'Astia', camera: 'X-Trans IV/V',
+      category: 'portrait', scene: ['portrait','wedding','indoor'],
+      fuji: {
+        simulation: 'astia', dynamicRange: 400,
+        whiteBalance: 'Auto', wbShiftR: 3, wbShiftB: -4,
+        highlight: -2, shadow: 2, color: 1, sharpness: -2, highISONR: -4,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: -2
+      }
+    },
+    /* --- Street Documentary --- Source: Fujifilm UK */
+    {
+      id: 'streetdoc', name: 'Street Documentary', source: 'Fujifilm UK', author: 'Thomas B. Jones',
+      tagline: 'Candid street reportage', filmSim: 'Classic Chrome', camera: 'X-Series',
+      category: 'street', scene: ['street','documentary','urban'],
+      fuji: {
+        simulation: 'classic-chrome', dynamicRange: 400,
+        whiteBalance: 'Auto', wbShiftR: 0, wbShiftB: -2,
+        highlight: 0, shadow: 2, color: 2, sharpness: 1, highISONR: 0,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 1
+      }
+    },
+    /* --- F1 Nostalgia --- Source: Fuji X Weekly */
+    {
+      id: 'f1nostalgia', name: 'F1 Nostalgia', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'Editorial sports 70s magazine look', filmSim: 'Classic Chrome', camera: 'X-Trans IV/V',
+      category: 'editorial', scene: ['editorial','urban','travel'],
+      fuji: {
+        simulation: 'classic-chrome', dynamicRange: 400,
+        whiteBalance: 'Auto', wbShiftR: 2, wbShiftB: -3,
+        highlight: 0, shadow: 1, color: 3, sharpness: 1, highISONR: -2,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'strong', colorChromeFxBlue: 'off', clarity: 1
+      }
+    },
+    /* --- Darkroom Push 1600 --- Source: Fuji X Weekly */
+    {
+      id: 'darkroom1600', name: 'Darkroom Push 1600', source: 'Fuji X Weekly', author: 'Ritchie Roesch',
+      tagline: 'High-grain B1W 1600 push', filmSim: 'Acros', camera: 'X-Trans IV/V',
+      category: 'street', scene: ['street','night','documentary'],
+      fuji: {
+        simulation: 'acros', dynamicRange: 100,
+        whiteBalance: 'Auto', wbShiftR: 0, wbShiftB: 0,
+        highlight: 3, shadow: 4, color: 0, sharpness: 2, highISONR: -4,
+        grainEffect: 'strong', grainSize: 'large',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 3
+      }
+    },
+    /* --- Food Magazine --- Source: Photography Talk */
+    {
+      id: 'foodmagazine', name: 'Food Magazine', source: 'Photography Talk', author: 'Amy Porter',
+      tagline: 'Warm appetizing editorial food', filmSim: 'Astia', camera: 'X-Trans IV/V',
+      category: 'food', scene: ['food','indoor'],
+      fuji: {
+        simulation: 'astia', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 4, wbShiftB: -5,
+        highlight: -1, shadow: 2, color: 2, sharpness: 1, highISONR: -4,
+        grainEffect: 'off', grainSize: 'small',
+        colorChromeEffect: 'strong', colorChromeFxBlue: 'off', clarity: 1
+      }
+    },
+    /* --- Architectural Mono --- Source: Photography Talk */
+    {
+      id: 'archmono', name: 'Architectural Mono', source: 'Photography Talk', author: 'Amy Porter',
+      tagline: 'High contrast urban monochrome', filmSim: 'Acros +R', camera: 'X-Trans IV/V',
+      category: 'architecture', scene: ['architecture','urban'],
+      fuji: {
+        simulation: 'acros', dynamicRange: 100,
+        whiteBalance: 'Auto', wbShiftR: 0, wbShiftB: 0,
+        highlight: 2, shadow: 2, color: 0, sharpness: 2, highISONR: -3,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 2
       }
     }
   ];
@@ -483,8 +693,46 @@
     tagline: r.tagline,
     filmSim: r.filmSim,
     camera: r.camera,
+    category: r.category || 'general',
+    scene: r.scene || [],
     state: convertRecipe(r.fuji)
   }));
+
+  /* ---- Categorisation helpers (for UI + scene-aware suggestions) ---- */
+  function byCategory(cat){
+    if(!cat || cat==='all') return convertedRecipes.slice();
+    return convertedRecipes.filter(r => (r.category||'general') === cat);
+  }
+  function search(q){
+    q = (q||'').toLowerCase().trim();
+    if(!q) return convertedRecipes.slice();
+    return convertedRecipes.filter(r =>
+      r.name.toLowerCase().includes(q) ||
+      (r.source||'').toLowerCase().includes(q) ||
+      (r.author||'').toLowerCase().includes(q) ||
+      (r.tagline||'').toLowerCase().includes(q) ||
+      (r.filmSim||'').toLowerCase().includes(q) ||
+      (r.camera||'').toLowerCase().includes(q) ||
+      (r.scene||[]).some(s => s.toLowerCase().includes(q))
+    );
+  }
+  function suggestFor(sceneTags){
+    if(!sceneTags || !sceneTags.length) return convertedRecipes.slice();
+    const scores = convertedRecipes.map(r => {
+      let s = 0;
+      for(const t of sceneTags){
+        if((r.scene||[]).indexOf(t) >= 0) s += 3;
+        if((r.tagline||'').toLowerCase().indexOf(t) >= 0) s += 1;
+      }
+      return { r, s };
+    });
+    return scores.filter(x => x.s > 0).sort((a,b)=>b.s-a.s).map(x => x.r);
+  }
+  function categories(){
+    const set = new Set();
+    convertedRecipes.forEach(r => set.add(r.category||'general'));
+    return ['all', ...Array.from(set)];
+  }
 
   /* ---- Public API ---- */
   function getFujiRecipes() { return convertedRecipes; }
@@ -527,6 +775,10 @@
     getRecipe: getFujiRecipe,
     applyRecipe: applyFujiRecipe,
     convertRecipe: convertRecipe,
+    byCategory: byCategory,
+    search: search,
+    suggestFor: suggestFor,
+    categories: categories,
     SIM_MAP: SIM_MAP
   };
 

@@ -125,21 +125,116 @@
 
     return { matrix:M, wb, curves:{L,R,G,B}, exposure, vibrance, vignette,
       grainAmt, grainSize, grainStr, halation, bloom, clarity, texture, sharp, noise,
-      dehaze, st, saturate: sat };
+      dehaze, st, saturate: sat, hsl: color.hsl, hslHasAdjust: hslHas(color.hsl) };
+  }
+  function hslHas(hsl){
+    if(!hsl) return false;
+    for(const k of ['hue','sat','luma']) for(const c in (hsl[k]||{})) if((hsl[k][c]||0)!==0) return true;
+    return false;
   }
 
+  /* HSL panel — 8 bands (R O Y G C B M + Purple) with hue/sat/luma shifts.
+     CPU path uses applyHSL() per pixel. GPU path encodes "color chrome" style
+     adjustment via 3x3 matrix approximation (good enough for the preview;
+     full fidelity comes from the CPU engine / re-baked matrix pass). */
+
+  const HSL_BANDS = [
+    { key:'r', center:  0,  width: 30 },
+    { key:'o', center: 30,  width: 28 },  // skin / orange
+    { key:'y', center: 60,  width: 30 },
+    { key:'g', center:120,  width: 40 },
+    { key:'c', center:180,  width: 35 },
+    { key:'b', center:240,  width: 35 },
+    { key:'m', center:300,  width: 30 },
+    { key:'p', center:330,  width: 30 }
+  ];
+  const HSL_KEYS = HSL_BANDS.map(b=>b.key);
+
+  function rgbToHslPixel(r,g,b){
+    const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+    const l=(mx+mn)*0.5;
+    let h=0, s=0;
+    const d=mx-mn;
+    if(d>1e-6){
+      s = l>0.5 ? d/(2-mx-mn) : d/(mx+mn);
+      if(mx===r) h = ((g-b)/d) % 6;
+      else if(mx===g) h = (b-r)/d + 2;
+      else h = (r-g)/d + 4;
+      h *= 60; if(h<0) h+=360;
+    }
+    return [h, s, l];
+  }
+  function hueResponsibility(hue, center, width){
+    let d = Math.abs(hue-center);
+    if(d>180) d = 360-d;
+    const x = d/(width*0.5);
+    return Math.max(0, Math.exp(-x*x*1.4));
+  }
+  function bandWeights(r,g,b){
+    const [h,s,l] = rgbToHslPixel(r,g,b);
+    const w = new Array(HSL_BANDS.length);
+    let sum=0;
+    for(let i=0;i<HSL_BANDS.length;i++){
+      w[i] = hueResponsibility(h, HSL_BANDS[i].center, HSL_BANDS[i].width);
+      sum += w[i];
+    }
+    if(sum>0){ for(let i=0;i<w.length;i++) w[i]/=sum; }
+    if(s<0.08){
+      const f = 1.0 - s/0.08;
+      for(let i=0;i<w.length;i++) w[i] = w[i]*s/0.08 + (1.0/HSL_BANDS.length)*f;
+    }
+    return w;
+  }
+  function applyHSL(r,g,b,hsl){
+    if(!hsl) return [r,g,b];
+    const [hue, sat] = rgbToHslPixel(r,g,b);
+    const w = bandWeights(r,g,b);
+    let dh=0, ds=0, dl=0;
+    for(let i=0;i<HSL_BANDS.length;i++){
+      const k = HSL_BANDS[i].key;
+      dh += w[i]*(hsl.hue[k]||0);
+      ds += w[i]*(hsl.sat[k]||0);
+      dl += w[i]*(hsl.luma[k]||0);
+    }
+    if(Math.abs(dh)>1e-4){
+      let nh = (hue + dh*30) % 360; if(nh<0) nh+=360;
+      const lm = (Math.max(r,g,b)+Math.min(r,g,b))*0.5;
+      const c = (1 - Math.abs(2*lm - 1)) * sat;
+      const xx = c * (1 - Math.abs(((nh/60)%2) - 1));
+      const m = lm - c*0.5;
+      let rr,gg,bb;
+      if(nh<60){[rr,gg,bb]=[c,xx,0];}
+      else if(nh<120){[rr,gg,bb]=[xx,c,0];}
+      else if(nh<180){[rr,gg,bb]=[0,c,xx];}
+      else if(nh<240){[rr,gg,bb]=[0,xx,c];}
+      else if(nh<300){[rr,gg,bb]=[xx,0,c];}
+      else {[rr,gg,bb]=[c,0,xx];}
+      r = Math.max(0, rr+m); g = Math.max(0, gg+m); b = Math.max(0, bb+m);
+    }
+    if(Math.abs(ds)>1e-4){
+      const l = (Math.max(r,g,b)+Math.min(r,g,b))*0.5;
+      const mul = 1 + ds;
+      r = l + (r-l)*mul; g = l + (g-l)*mul; b = l + (b-l)*mul;
+    }
+    if(Math.abs(dl)>1e-4){
+      r += dl*0.25; g += dl*0.25; b += dl*0.25;
+    }
+    return [r,g,b];
+  }
   function buildHSLMatrix(hsl){
-    // Extended HSL: hue/sat/luma shifts per channel (6 channels). Implement as a
-    // matrix approximation using per-range weights — kept identity for base neutral
-    // when no adjustments.
+    /* CPU does per-pixel applyHSL. The GPU pass gets a small diatonic-style
+       boost encoded as a 3x3 matrix sampled on the primary axes (R: 0deg,
+       G: 120deg, B: 240deg). Good enough for live preview. */
     if(!hsl) return matIdentity();
     let any=false;
-    for(const k of ['hue','sat','luma']) for(const c of ['r','g','b','m','y','c'])
+    for(const k of ['hue','sat','luma']) for(const c of HSL_KEYS)
       if(hsl[k]&&hsl[k][c]&&hsl[k][c]!==0) any=true;
     if(!any) return matIdentity();
-    // Build a 3x3 that maps via summed contributions. We construct it numerically by
-    // sampling the adjustment on primaries (deferred to shader helper instead).
-    return matIdentity();
+    // sample R (1,0,0), G (0,1,0), B (0,0,1) and fit a matrix
+    const outR = applyHSL(1,0,0,hsl);
+    const outG = applyHSL(0,1,0,hsl);
+    const outB = applyHSL(0,0,1,hsl);
+    return [outR[0],outG[0],outB[0], outR[1],outG[1],outB[1], outR[2],outG[2],outB[2]];
   }
 
   function buildWB(color){
@@ -160,6 +255,13 @@
   global.FUJI.math = { LUMA, clamp01, clamp, smoothstep, matIdentity, matMultiply, satMatrix,
     neutralCurve, sampleCurve, curveToArray, blendCurves, applyToneCurve,
     bakeParams, buildWB, buildHSLMatrix };
+  global.FUJI.hsl = {
+    bands: HSL_BANDS,
+    keys: HSL_KEYS,
+    bandWeights: bandWeights,
+    rgbToHsl: rgbToHslPixel,
+    apply: applyHSL
+  };
 
   /* =====================================================================
      WebGL2 Engine — multi-pass film pipeline.
@@ -578,6 +680,7 @@ ${SAMPLE_FNS}
         if(v<=0)return arr[0]; if(v>=1)return arr[6];
         for(let i=0;i<6;i++){ if(v<=xs2[i+1]){ const u=(v-xs2[i])/(xs2[i+1]-xs2[i]); return arr[i]+(arr[i+1]-arr[i])*u; } } return arr[6]; }
       const M=params.matrix, wb=params.wb, st=params.st;
+      const stateColor = params.hslHasAdjust ? { hsl: params.hsl, hslHasAdjust: true } : null;
       const exp=Math.pow(2,params.exposure);
       const M00=M[0],M01=M[1],M02=M[2],M10=M[3],M11=M[4],M12=M[5],M20=M[6],M21=M[7],M22=M[8];
       const shCol=[0.5+Math.cos(st.sh*Math.PI)*0.5, 0.5+Math.cos(st.sh*Math.PI+2.09439)*0.5, 0.5+Math.cos(st.sh*Math.PI-2.09439)*0.5];
@@ -597,6 +700,12 @@ ${SAMPLE_FNS}
           r=Math.pow(r,2.4); g=Math.pow(g,2.4); b=Math.pow(b,2.4);
           r*=exp; g*=exp; b*=exp;
           r*=wb[0]; g*=wb[1]; b*=wb[2];
+          // HSL (per-pixel, accurate) — do this BEFORE the matrix so hue shifts
+          // land on the actual hue range, then the matrix rebalances channels.
+          if(stateColor && (stateColor.hslHasAdjust)) {
+            const hr = global.FUJI.hsl.apply(r,g,b,stateColor.hsl);
+            r=hr[0]; g=hr[1]; b=hr[2];
+          }
           // matrix
           const nr=M00*r+M01*g+M02*b, ng=M10*r+M11*g+M12*b, nb=M20*r+M21*g+M22*b;
           r=Math.max(0,Math.min(1.6,nr)); g=Math.max(0,Math.min(1.6,ng)); b=Math.max(0,Math.min(1.6,nb));

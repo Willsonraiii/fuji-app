@@ -260,6 +260,108 @@
     }
   });
 
+  /* 17. Pro Neg Hi — punchier portrait :: Fuji Pro Neg Hi */
+  def({
+    id:"proneghi", name:"Pro Neg Hi", type:"Portrait", tagline:"Punchy portrait skin",
+    swatch:"#d49a6e",
+    engine:{
+      matrix: mul( S(1.04), mul( hueRot(-2), DIAG(1.08,1.01,0.95) ) ),
+      channelCurves: [ SOFT_S, SOFT_S, SOFT_S ],
+      lumaCurve: SOFT_S, saturation:1.04, exposure:0.04,
+      grainAmt:0.30, grainSize:0.5, halation:0.10, bloom:0.02, vignette:0.13,
+      split:{ sh:0.18, ss:0.10, hh:0.04, hs:0.06 }, vibrance:0.10
+    }
+  });
+
+  /* 18. Pro Neg Std — softer neutral portrait :: Fuji Pro Neg Std */
+  def({
+    id:"pronegstd", name:"Pro Neg Std", type:"Portrait", tagline:"Soft neutral portrait",
+    swatch:"#caa78a",
+    engine:{
+      matrix: mul( S(0.95), mul( hueRot(0), DIAG(1.04,1.0,0.97) ) ),
+      channelCurves: [ crv(P(0,0.03),P(0.3,0.33),P(0.5,0.51),P(0.7,0.69),P(1,0.96)),
+                       crv(P(0,0.02),P(0.3,0.31),P(0.5,0.5),P(0.7,0.7),P(1,0.99)),
+                       crv(P(0,0.02),P(0.3,0.31),P(0.5,0.49),P(0.7,0.68),P(1,0.99)) ],
+      lumaCurve: FLAT, saturation:0.95, exposure:0.05,
+      grainAmt:0.25, grainSize:0.5, halation:0.08, bloom:0.02, vignette:0.12,
+      split:{ sh:0.08, ss:0.06, hh:0.05, hs:0.05 }, vibrance:0.08
+    }
+  });
+
+  /* 19. Eterna Bleach Bypass — desaturated cinematic */
+  def({
+    id:"eternableach", name:"Eterna Bleach Bypass", type:"Cinematic", tagline:"High-contrast cinematic",
+    swatch:"#a4a59e",
+    engine:{
+      matrix: mul( S(0.55), mul( hueRot(-2), DIAG(1.02,1.0,0.96) ) ),
+      channelCurves: [ HARD_NIC, HARD_NIC, HARD_NIC ],
+      lumaCurve: HARD_NIC, saturation:0.55, exposure:0.04,
+      grainAmt:0.85, grainSize:0.6, halation:0.05, bloom:0.02, vignette:0.22,
+      split:{ sh:0.7, ss:0.16, hh:0.04, hs:0.12 }, vibrance:-0.10
+    }
+  });
+
+  /* 20. Acros Standard R/Y/G filter — pure mono with warm tint */
+  def({
+    id:"acros_r", name:"Acros +R Filter", type:"B&W", tagline:"Acros with red filter",
+    bw:true, swatch:"#7a4040",
+    engine:{
+      matrix: S(0.0),
+      channelCurves: [
+        /* R-filter: emphasize blue contrast, darken reds slightly */
+        crv(P(0,0.02),P(0.3,0.20),P(0.5,0.42),P(0.7,0.70),P(1,0.99)),
+        crv(P(0,0.04),P(0.3,0.30),P(0.5,0.50),P(0.7,0.70),P(1,0.99)),
+        crv(P(0,0.06),P(0.3,0.40),P(0.5,0.58),P(0.7,0.74),P(1,1.0))
+      ],
+      lumaCurve: SOFT_S, saturation:0.0, exposure:0.02,
+      grainAmt:0.85, grainSize:0.5, halation:0.0, bloom:0.0, vignette:0.18,
+      split:{ sh:0.7, ss:0.04, hh:0.05, hs:0.02 }, vibrance:0
+    }
+  });
+  def({
+    id:"acros_y", name:"Acros +Y Filter", type:"B&W", tagline:"Acros with yellow filter",
+    bw:true, swatch:"#9a8a55",
+    engine:{
+      matrix: S(0.0),
+      channelCurves: [
+        crv(P(0,0.02),P(0.3,0.26),P(0.5,0.46),P(0.7,0.72),P(1,0.99)),
+        crv(P(0,0.03),P(0.3,0.32),P(0.5,0.50),P(0.7,0.72),P(1,0.99)),
+        crv(P(0,0.04),P(0.3,0.36),P(0.5,0.54),P(0.7,0.72),P(1,1.0))
+      ],
+      lumaCurve: SOFT_S, saturation:0.0, exposure:0.02,
+      grainAmt:0.85, grainSize:0.5, halation:0.0, bloom:0.0, vignette:0.15,
+      split:{ sh:0.5, ss:0.04, hh:0.05, hs:0.02 }, vibrance:0
+    }
+  });
+  def({
+    id:"acros_g", name:"Acros +G Filter", type:"B&W", tagline:"Acros with green filter",
+    bw:true, swatch:"#5d8060",
+    engine:{
+      matrix: S(0.0),
+      channelCurves: [
+        crv(P(0,0.02),P(0.3,0.28),P(0.5,0.46),P(0.7,0.70),P(1,0.99)),
+        crv(P(0,0.04),P(0.3,0.36),P(0.5,0.56),P(0.7,0.76),P(1,1.0)),
+        crv(P(0,0.03),P(0.3,0.30),P(0.5,0.48),P(0.7,0.70),P(1,0.99))
+      ],
+      lumaCurve: SOFT_S, saturation:0.0, exposure:0.02,
+      grainAmt:0.85, grainSize:0.5, halation:0.0, bloom:0.0, vignette:0.15,
+      split:{ sh:0.3, ss:0.06, hh:0.55, hs:0.02 }, vibrance:0
+    }
+  });
+
+  /* 21. Sepia Warm — vintage tinted mono */
+  def({
+    id:"sepiawarm", name:"Sepia Warm", type:"Vintage", tagline:"Warm sepia tint",
+    swatch:"#a6824a",
+    engine:{
+      matrix: mul( S(0.0), mul( hueRot(-8), DIAG(1.18,1.06,0.86) ) ),
+      channelCurves: [ VINTAGE, VINTAGE, VINTAGE ],
+      lumaCurve: VINTAGE, saturation:0.55, exposure:0.04,
+      grainAmt:0.7, grainSize:0.6, halation:0.12, bloom:0.04, vignette:0.20,
+      split:{ sh:0.12, ss:0.16, hh:0.10, hs:0.08 }, vibrance:0
+    }
+  });
+
   /* importable into global namespace */
   global.FUJI.profiles = PROFILES;
   global.FUJI.getProfile = function(id){ return PROFILES.find(p=>p.id===id)||PROFILES[0]; };

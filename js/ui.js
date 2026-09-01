@@ -190,6 +190,28 @@
     LIGHT_DEFS.forEach(([k,label,min,max,step])=>{
       el.appendChild(sliderRow({label,min,max,step,value:s[k],path:'light.'+k}));
     });
+    // Auto button (uses App.context)
+    const auto = document.createElement('div'); auto.className='confirm-bar';
+    auto.innerHTML = `<button class="btn-ghost" id="auto-context">Auto from context</button>`;
+    auto.querySelector('#auto-context').addEventListener('click', ()=>{
+      if(!App.context || !App.context.auto || !Object.keys(App.context.auto.tweaks||{}).length){
+        App.toast('No context available'); return;
+      }
+      const t = App.context.auto.tweaks;
+      const pathMap = {
+        exposure:'light.exposure', contrast:'light.contrast', highlights:'light.highlights',
+        shadows:'light.shadows', whites:'light.whites', blacks:'light.blacks',
+        temperature:'color.temperature', tint:'color.tint',
+        vibrance:'color.vibrance', saturation:'color.saturation',
+        clarity:'detail.clarity', sharp:'detail.sharp', noise:'detail.noise', dehaze:'detail.dehaze'
+      };
+      const prev = FUJI.deepClone(App.state.cur);
+      for(const k in t){ if(pathMap[k]) App.state.cur[pathMap[k].split('.')[0]][pathMap[k].split('.')[1]] = t[k]; }
+      App.state.commit(prev);
+      App.renderFull(); App.updateHistoryFlags();
+      App.toast('Applied auto from context');
+    });
+    el.appendChild(auto);
     App.ui.sheetReset = ()=>{ App.resetTools(); };
     return el;
   };
@@ -206,7 +228,7 @@
     el.appendChild(sliderRow({label:'Vibrance',min:-1,max:1,step:0.01,value:c.vibrance,path:'color.vibrance',icon:'◒'}));
     el.appendChild(sliderRow({label:'Saturation',min:-1,max:1,step:0.01,value:c.saturation,path:'color.saturation',icon:'◐'}));
     el.appendChild(divider());
-    el.appendChild(group('HSL'));
+    el.appendChild(group('HSL — 8-band (R O Y G C B M Purple)'));
     el.appendChild(App.ui.hslSegment());
     el.appendChild(divider());
     el.appendChild(group('Color grade'));
@@ -221,7 +243,8 @@
   App.ui.hslSegment = function(){
     const wrap=document.createElement('div');
     const seg=document.createElement('div'); seg.className='segment';
-    const chans=[['r','R'],['g','G'],['b','B'],['m','M'],['y','Y'],['c','C']];
+    const chans = (global.FUJI.hsl?.keys || ['r','o','y','g','c','b','m','p'])
+      .map(k => [k, k.toUpperCase()]);
     let active='r';
     chans.forEach(([k,l])=>{
       const d=document.createElement('div'); d.className='seg'+(active===k?' active':''); d.dataset.ch=k; d.textContent=l;
@@ -289,6 +312,7 @@
   };
 
   /* ================= RECIPE SHEET ================= */
+  App.ui._recipeFilter = { category: 'all', q: '', sort: 'default' };
   App.ui.openRecipeSheet = function(){
     const layer=$$('#recipe-layer');
     const body=$$('#recipe-body');
@@ -296,41 +320,110 @@
     const header=document.createElement('div'); header.className='recipe-header';
     header.innerHTML=`<div class="sheet-title"><span class="st-label">Recipes</span></div>`;
     body.appendChild(header);
+    // search
+    const search=document.createElement('div'); search.className='recipe-search';
+    search.innerHTML=`<input id="r-search" type="search" placeholder="Search Fuji recipes…  e.g. Kodachrome, Portra, Bleach Bypass" autocomplete="off"/>
+      <button class="icon-btn" id="r-clear" aria-label="Clear">${icon('close')}</button>`;
+    search.querySelector('#r-search').addEventListener('input', e=>{
+      App.ui._recipeFilter.q = e.target.value;
+      App.ui.renderRecipeList();
+    });
+    search.querySelector('#r-clear').addEventListener('click', ()=>{
+      search.querySelector('#r-search').value='';
+      App.ui._recipeFilter.q='';
+      App.ui.renderRecipeList();
+    });
+    body.appendChild(search);
+    // category chips
+    const chips=document.createElement('div'); chips.className='recipe-chips';
+    const cats = global.FUJI.fujiRecipes.categories();
+    cats.forEach(c=>{
+      const b=document.createElement('button');
+      b.className='recipe-chip'+(App.ui._recipeFilter.category===c?' active':'');
+      b.dataset.cat=c; b.textContent = c.charAt(0).toUpperCase()+c.slice(1);
+      b.addEventListener('click',()=>{
+        App.ui._recipeFilter.category=c;
+        chips.querySelectorAll('.recipe-chip').forEach(x=>x.classList.toggle('active', x.dataset.cat===c));
+        App.ui.renderRecipeList();
+      });
+      chips.appendChild(b);
+    });
+    body.appendChild(chips);
+    // scene suggestion banner (if any scene tags detected on photo)
+    if(App.context && App.context.scene && App.context.scene.length){
+      const sug = global.FUJI.fujiRecipes.suggestFor(App.context.scene).slice(0,3);
+      if(sug.length){
+        const banner=document.createElement('div'); banner.className='recipe-suggest';
+        const tags=App.context.scene.map(s=>`<span class="ctx-tag">${escapeHtml(s)}</span>`).join(' ');
+        banner.innerHTML = `<div class="rs-head">Context: ${tags}</div>
+          <div class="rs-sub">Recipes that match your scene</div>
+          <div class="rs-row"></div>`;
+        const row=banner.querySelector('.rs-row');
+        sug.forEach(r=>{
+          const c=document.createElement('button'); c.className='rs-pill';
+          c.innerHTML=`<span class="rs-dot" style="background:${global.FUJI.getProfile(r.state.profileId).swatch}"></span><span>${escapeHtml(r.name)}</span>`;
+          c.addEventListener('click',()=>{ App.onRecipeApply&&App.onRecipeApply(r.id); });
+          row.appendChild(c);
+        });
+        body.appendChild(banner);
+      }
+    }
     // actions
     const acts=document.createElement('div'); acts.className='recipe-actions';
     acts.innerHTML=`
       <button class="recipe-action-btn" id="r-save" data-a="save">${icon('save')}<span>Save current</span></button>
       <button class="recipe-action-btn" id="r-export" data-a="export">${icon('share')}<span>Export</span></button>
-      <button class="recipe-action-btn" id="r-import" data-a="import">${icon('check')}<span>Import</span></button>`;
+      <button class="recipe-action-btn" id="r-import" data-a="import">${icon('check')}<span>Import</span></button>
+      <button class="recipe-action-btn" id="r-url" data-a="url">${icon('share')}<span>From URL</span></button>`;
     acts.querySelector('#r-save').addEventListener('click', ()=>App.onRecipeSave&&App.onRecipeSave());
     acts.querySelector('#r-export').addEventListener('click', ()=>App.onRecipeExport&&App.onRecipeExport());
     acts.querySelector('#r-import').addEventListener('click', ()=>App.onRecipeImport&&App.onRecipeImport());
+    acts.querySelector('#r-url').addEventListener('click', ()=>App.ui.importFromURL&&App.ui.importFromURL());
     body.appendChild(acts);
     body.appendChild(App.ui.recipeListEl());
     App.ui.showSheet($$('#recipe-layer'), $$('#recipe-sheet'));
   };
   App.ui.recipeListEl = function(){
     const list=document.createElement('div'); list.className='recipe-list';
-    const recs=global.FUJI.recipes.allRecipes();
+    const f = App.ui._recipeFilter;
+    let recs = global.FUJI.recipes.allRecipes();
+    // apply filters
+    recs = recs.filter(r => {
+      if(r.builtin){
+        if(f.category !== 'all' && (r.fuji?.category||'general') !== f.category) return false;
+        if(f.q){
+          const q=f.q.toLowerCase();
+          const blob = [
+            r.name, r.fuji?.source, r.fuji?.author, r.fuji?.tagline,
+            r.fuji?.filmSim, r.fuji?.camera, r.fuji?.category,
+            (r.fuji?.scene||[]).join(' ')
+          ].join(' ').toLowerCase();
+          if(blob.indexOf(q)<0) return false;
+        }
+      }
+      return true;
+    });
     if(!recs.length){
       const e=document.createElement('div'); e.className='group-label'; e.style.padding='24px 0'; e.style.textAlign='center';
-      e.textContent='No recipes yet. Save your current look.';
+      e.textContent='No recipes match.';
       list.appendChild(e); return list;
     }
     recs.forEach(r=>{
       const card=document.createElement('div'); card.className='recipe-card'+(r.builtin?' builtin':'');
       const prof=global.FUJI.getProfile(r.preset.profileId);
+      const cat = r.builtin ? (r.fuji?.category||'general') : null;
       const sub = r.builtin
-        ? `<span class="fuji-tag">FUJI</span> ${r.fuji?r.fuji.filmSim:'Recipe'}${r.fuji&&r.fuji.source?' · '+escapeHtml(r.fuji.source):''}`
+        ? `<span class="fuji-tag">FUJI</span> ${r.fuji?r.fuji.filmSim:'Recipe'}${r.fuji&&r.fuji.source?' · '+escapeHtml(r.fuji.source):''}${cat?' · '+cat:''}`
         : (prof?prof.name:'Custom')+' · '+Math.round(r.intensity*100)+'%';
       card.innerHTML=`
         <div class="rc-thumb" style="background:${prof?prof.swatch:'#333'}"></div>
         <div class="rc-info"><div class="rc-name">${escapeHtml(r.name)}</div>
           <div class="rc-sub">${sub}</div></div>
-        <button class="rc-fav ${r.favorite?'active':''}">${r.favorite?'♥':'♡'}</button>
-        <button class="rc-apply">${icon('check')}</button>`;
+        <button class="rc-fav ${r.favorite?'active':''}" title="Favorite">${r.favorite?'♥':'♡'}</button>
+        <button class="rc-apply" title="Apply">${icon('check')}</button>`;
       card.querySelector('.rc-fav').addEventListener('click', (e)=>{ e.stopPropagation(); if(r.builtin) return; global.FUJI.recipes.toggleFavorite(r.id); App.state&&App.state.emitRecipes(); if(App.ui.renderRecipeList)App.ui.renderRecipeList(); });
       card.querySelector('.rc-apply').addEventListener('click', (e)=>{ e.stopPropagation(); App.onRecipeApply&&App.onRecipeApply(r.id); });
+      card.addEventListener('click', ()=> App.ui.showRecipeDetail && App.ui.showRecipeDetail(r));
       card.addEventListener('contextmenu',(e)=>{ e.preventDefault(); App.ui.recipeMenu(r.id); });
       card.addEventListener('touchstart',()=>{ App._longPress=setTimeout(()=>{ App.ui.recipeMenu(r.id); App._longPress=null; }, 500); });
       card.addEventListener('touchend',()=>{ if(App._longPress){clearTimeout(App._longPress); App._longPress=null;} });
@@ -342,6 +435,106 @@
     if(!$$('#recipe-body') || !$$('#recipe-body .recipe-list')) return;
     const old=$$('#recipe-body .recipe-list');
     if(old) old.replaceWith(App.ui.recipeListEl());
+  };
+
+  /* ---------- Recipe detail sheet (FUJI recipes only) ---------- */
+  App.ui.showRecipeDetail = function(r){
+    const layer=$$('#recipe-detail-layer');
+    if(!layer) return;
+    const body=$$('#recipe-detail-body');
+    body.innerHTML='';
+    const prof=global.FUJI.getProfile(r.preset.profileId);
+    const close=document.createElement('div'); close.className='sheet-title';
+    close.innerHTML=`<span class="st-label">${escapeHtml(r.name)}</span><button class="icon-btn" id="rd-close">${icon('close')}</button>`;
+    close.querySelector('#rd-close').addEventListener('click', ()=>{ layer.classList.add('closing'); setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); },280); });
+    body.appendChild(close);
+    // swatch + meta
+    const head=document.createElement('div'); head.className='rd-head';
+    head.innerHTML=`<div class="rd-swatch" style="background:${prof?prof.swatch:'#333'}"></div>
+      <div class="rd-meta">
+        <div class="rd-tagline">${escapeHtml(r.tagline||r.fuji?.tagline||'')}</div>
+        <div class="rd-sub">${escapeHtml(r.fuji?.source||'')}${r.fuji?.author?' · '+escapeHtml(r.fuji.author):''}</div>
+        <div class="rd-sub">${escapeHtml(r.fuji?.filmSim||'')} · ${escapeHtml(r.fuji?.camera||'')}</div>
+      </div>`;
+    body.appendChild(head);
+    // detail rows (mapped from the actual app state)
+    const s = r.state || (r.preset);
+    const rows=[];
+    rows.push(['Profile', (prof?prof.name:r.preset.profileId)]);
+    rows.push(['Film sim', (r.fuji?.simulation||'')]);
+    if(s.light){
+      const L=s.light;
+      if(L.exposure) rows.push(['Exposure', fmtVal(L.exposure,'pct')]);
+      if(L.highlights) rows.push(['Highlights', fmtVal(L.highlights,'pct')]);
+      if(L.shadows) rows.push(['Shadows', fmtVal(L.shadows,'pct')]);
+      if(L.contrast) rows.push(['Contrast', fmtVal(L.contrast,'pct')]);
+    }
+    if(s.color){
+      const C=s.color;
+      if(C.temperature) rows.push(['Temperature', fmtVal(C.temperature,'pct')]);
+      if(C.tint) rows.push(['Tint', fmtVal(C.tint,'pct')]);
+      if(C.vibrance) rows.push(['Vibrance', fmtVal(C.vibrance,'pct')]);
+      if(C.saturation) rows.push(['Saturation', fmtVal(C.saturation,'pct')]);
+    }
+    if(s.detail){
+      const D=s.detail;
+      if(D.clarity) rows.push(['Clarity', fmtVal(D.clarity,'pct')]);
+      if(D.sharp) rows.push(['Sharpening', fmtVal(D.sharp,'pct')]);
+    }
+    if(s.film){
+      const F=s.film;
+      if(F.grain) rows.push(['Grain', fmtVal(F.grain,'pct')]);
+      if(F.halation) rows.push(['Halation', fmtVal(F.halation,'pct')]);
+      if(F.bloom) rows.push(['Bloom', fmtVal(F.bloom,'pct')]);
+    }
+    if(s.vignette) rows.push(['Vignette', fmtVal(s.vignette,'pct')]);
+    if(r.fuji?.scene && r.fuji.scene.length) rows.push(['Scene', r.fuji.scene.map(escapeHtml).join(', ')]);
+    const tab=document.createElement('div'); tab.className='rd-table';
+    rows.forEach(([k,v])=>{
+      const r1=document.createElement('div'); r1.className='rd-row';
+      r1.innerHTML=`<span class="rd-k">${escapeHtml(k)}</span><span class="rd-v">${escapeHtml(String(v))}</span>`;
+      tab.appendChild(r1);
+    });
+    body.appendChild(tab);
+    // actions
+    const bar=document.createElement('div'); bar.className='confirm-bar';
+    bar.innerHTML=`<button class="btn-primary" id="rd-apply">Apply</button>
+      <button class="btn-ghost" id="rd-share">${icon('share')}<span>Share link</span></button>
+      <button class="btn-ghost" id="rd-export">${icon('check')}<span>Export</span></button>`;
+    bar.querySelector('#rd-apply').addEventListener('click', ()=>{ App.onRecipeApply&&App.onRecipeApply(r.id); layer.classList.add('closing'); setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); },280); });
+    bar.querySelector('#rd-export').addEventListener('click', ()=>{
+      const data = r.builtin && r.fuji ? r.fuji : r.preset;
+      App.downloadJSON(JSON.stringify(data,null,2), r.name.replace(/\W+/g,'_')+'.fuji.json');
+    });
+    bar.querySelector('#rd-share').addEventListener('click', async ()=>{
+      try{
+        const payload = r.builtin && r.fuji ? r.fuji : r.preset;
+        const url = '#recipe=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(payload)))));
+        const link = location.origin + location.pathname + url;
+        if(navigator.share){ await navigator.share({ title:r.name, text:'F-UJI Recipe', url:link }); }
+        else { await navigator.clipboard.writeText(link); App.toast('Link copied'); }
+      }catch(e){ App.toast('Share failed'); }
+    });
+    body.appendChild(bar);
+    layer.classList.remove('hidden');
+    layer.querySelector('.sheet-backdrop') && layer.querySelector('.sheet-backdrop').addEventListener('click', ()=>{ layer.classList.add('closing'); setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); },280); }, { once:true });
+  };
+
+  /* ---------- Import from URL (share link) ---------- */
+  App.ui.importFromURL = function(){
+    const v = prompt('Paste a F-UJI recipe link or JSON:', location.hash.startsWith('#recipe=') ? decodeURIComponent(location.hash.slice(8)) : '');
+    if(!v) return;
+    let txt = v;
+    if(v.startsWith('http') || v.startsWith('#recipe=')){
+      const hash = v.indexOf('#recipe=');
+      const enc = hash>=0 ? v.slice(hash+8) : v.split('#recipe=').pop();
+      try{ txt = decodeURIComponent(escape(atob(enc))); }
+      catch(e){ App.toast('Could not decode link'); return; }
+    }
+    try{
+      const n = FUJI.recipes.importJSON(txt);
+      App.ui.renderRecipeList(); App.toast('Imported ' + n);
+    }catch(e){ App.toast('Invalid recipe'); }
   };
   App.ui.recipeMenu = function(id){
     const r=global.FUJI.recipes.allRecipes().find(x=>x.id===id);

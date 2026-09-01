@@ -109,21 +109,21 @@
   function loadImageFile(file){
     if(!file) return;
     const url = URL.createObjectURL(file);
-    loadFromURL(url, file.name, file.type);
+    loadFromURL(url, file.name, file.type, file);
   }
-  function loadFromURL(url, name, type){
+  function loadFromURL(url, name, type, file){
     const img = new Image();
     img.onload = ()=>{
       const c = document.createElement('canvas');
       c.width = img.naturalWidth; c.height = img.naturalHeight;
       c.getContext('2d').drawImage(img,0,0);
-      attachPhoto(c, name, type||'image/jpeg');
+      attachPhoto(c, name, type||'image/jpeg', file);
       URL.revokeObjectURL(url);
     };
     img.onerror = ()=>{ App.toast('Could not load image'); URL.revokeObjectURL(url); };
     img.src = url;
   }
-  function attachPhoto(canvas, name, type){
+  async function attachPhoto(canvas, name, type, file){
     photo = { canvas, w:canvas.width, h:canvas.height, name:name||'photo.jpg', type:type||'image/jpeg' };
     if(!engine){
       engine = FUJI.createEngine(viewCanvas);
@@ -136,6 +136,18 @@
     App.state.reset();
     App.layoutStage();
     App.toast('Photo ready');
+    // Analyze context (EXIF + scene) — fully on-device
+    let exif = null;
+    if(file){ try { exif = await FUJI.context.readEXIF(file); } catch(e){ exif=null; } }
+    const scene = FUJI.context.analyzeScene(canvas);
+    App.context = { exif, scene: scene.tags, sceneFull: scene, auto: FUJI.context.autoAdjust(exif, scene) };
+    // meta chips: camera + ISO if present
+    const cam = exif ? `${exif.make} ${exif.model}`.replace(/^\s+|\s+$/g,'') : '';
+    if(cam) $('#meta-res').textContent = cam;
+    const exifChip = exif && exif.iso ? `ISO ${exif.iso}${exif.focalLength?` · ${Math.round(exif.focalLength)}mm`:''}` : '';
+    const meta = $$('#stage-meta');
+    if(meta && meta[1]) meta[1].textContent = exifChip || (photo.w + '×' + photo.h);
+    App.toast(`Detected: ${scene.tags.length ? scene.tags.join(', ') : 'no scene hints'}`);
   }
   /* keep a transition message */
   function gotoEditor(){ $('#home').classList.add('hidden'); $('#editor').classList.remove('hidden'); }
