@@ -60,23 +60,99 @@
     return pts;
   }
 
-  /* Bake final shader-ready params from app state (profile + manual) */
+  /* ---- Fuji camera-style settings → engine contribution ----
+     These are per-image "recipes within a recipe": dynamic range,
+     highlight/shadow tone, color, sharpness, NR, grain, Color Chrome
+     effects, clarity and WB preset. Raw values are applied on top of
+     the chosen film simulation so every photo can be customized. */
+  function fujiDefaults(){
+    return {
+      dr:'auto', highlightTone:0, shadowTone:0, color:0, sharpness:0, hNR:0,
+      grainEffect:'off', grainSize:'small', chromeFx:'off', chromeFxBlue:'off',
+      clarity:0, wbMode:'auto'
+    };
+  }
+  const WB_MODE_TEMP = { auto:0, daylight:0, cloudy:0.06, shade:0.12, tungsten:-0.18, fluorescent:-0.08, flash:0.02 };
+  function hueEmpty(){
+    const k=['r','o','y','g','c','b','m','p'], o={};
+    for(const c of k) o[c]=0;
+    return o;
+  }
+  function applyFuji(fj, light, color, film, det){
+    const wLight=Object.assign({}, light);
+    const wDet=Object.assign({}, det);
+    const wFilm=Object.assign({}, film);
+    const wColor=Object.assign({}, color);
+    wColor.hsl = wColor.hsl ? JSON.parse(JSON.stringify(wColor.hsl)) : { hue:hueEmpty(), sat:hueEmpty(), luma:hueEmpty() };
+    const NO=()=>({ hue:hueEmpty(), sat:hueEmpty(), luma:hueEmpty() });
+    for(const k of ['hue','sat','luma']){
+      if(!wColor.hsl[k]) wColor.hsl[k]=NO()[k];
+      for(const c of ['r','o','y','g','c','b','m','p']) if(wColor.hsl[k][c]==null) wColor.hsl[k][c]=0;
+    }
+    fj = fj || {};
+
+    // dynamic range — protects highlights; DR400 lifts the floor a touch
+    if(fj.dr===200){ wLight.highlights=(wLight.highlights||0)-0.08; wLight.shadows=(wLight.shadows||0)+0.04; }
+    else if(fj.dr===400){ wLight.highlights=(wLight.highlights||0)-0.16; wLight.shadows=(wLight.shadows||0)+0.08; wLight.exposure=(wLight.exposure||0)+0.04; }
+
+    // tone (-2..+4)
+    wLight.highlights=(wLight.highlights||0)+clamp(fj.highlightTone||0,-2,4)*0.14;
+    wLight.shadows=(wLight.shadows||0)+clamp(fj.shadowTone||0,-2,4)*0.16;
+
+    // color (-4..+4)
+    wColor.saturation=(wColor.saturation||0)+clamp(fj.color||0,-4,4)*0.085;
+    wColor.vibrance=(wColor.vibrance||0)+clamp(fj.color||0,-4,4)*0.02;
+
+    // clarity (-5..+5), sharpness (-4..+4), high ISO NR (-4..+4)
+    wDet.clarity=(wDet.clarity||0)+clamp(fj.clarity||0,-5,5)*0.11;
+    wDet.sharp=Math.max(0,Math.min(1,(wDet.sharp||0)+(clamp(fj.sharpness||0,-4,4)+4)*0.075));
+    wDet.noise=Math.max(0,Math.min(0.9,(wDet.noise||0)+(clamp(fj.hNR||0,-4,4)+4)*0.06));
+
+    // grain effect + size (size only pins when the effect is on)
+    if(fj.grainEffect==='weak'){ wFilm.grain=Math.max(wFilm.grain||0,0.32); wFilm.grainStrength=0.45; }
+    else if(fj.grainEffect==='strong'){ wFilm.grain=Math.max(wFilm.grain||0,0.7); wFilm.grainStrength=0.7; }
+    if(fj.grainEffect!=='off'){
+      if(fj.grainSize==='large') wFilm.grainSize=0.75;
+      else if(fj.grainSize==='small') wFilm.grainSize=0.35;
+    }
+
+    // Color Chrome Effect — boosts midrange saturation with slight contrast
+    const chrome = fj.chromeFx==='strong' ? 1 : fj.chromeFx==='weak' ? 0.5 : 0;
+    wColor.vibrance=(wColor.vibrance||0)+chrome*0.10;
+    wColor.saturation=(wColor.saturation||0)+chrome*0.06;
+    wLight.contrast=(wLight.contrast||0)+chrome*0.10;
+
+    // Color Chrome FX Blue — deepens blues/cyans
+    const cb = fj.chromeFxBlue==='strong' ? 1 : fj.chromeFxBlue==='weak' ? 0.5 : 0;
+    if(cb){
+      wColor.hsl.sat.b=(wColor.hsl.sat.b||0)+cb*0.35;
+      wColor.hsl.sat.c=(wColor.hsl.sat.c||0)+cb*0.15;
+      wColor.hsl.hue.b=(wColor.hsl.hue.b||0)-cb*0.06;
+    }
+
+    // WB preset adds base temperature/tint on top of the manual shift
+    wColor.temperature=(wColor.temperature||0)+(WB_MODE_TEMP[fj.wbMode]||0);
+    if(fj.wbMode==='fluorescent') wColor.tint=(wColor.tint||0)+0.04;
+
+    return { light:wLight, color:wColor, film:wFilm, det:wDet };
+  }
+
+  /* Bake final shader-ready params from app state (profile + manual + Fuji) */
   function bakeParams(state){
     const pid = state.profileId || 'off';
     const profile = (global.FUJI.getProfile && global.FUJI.getProfile(pid)) || null;
     const prof = profile ? profile.engine : null;
     const fi = clamp01(state.film.intensity);
-    const light = state.light||{};
-    const color = state.color||{};
-    const film = state.film||{};
-    const det = state.detail||{};
+    const fj = Object.assign(fujiDefaults(), state.fuji||{});
+    const base = applyFuji(fj, state.light||{}, state.color||{}, state.film||{}, state.detail||{});
+    const light = base.light, color = base.color, film = base.film, det = base.det;
     const grade = state.grade||{};
 
     // --- combined color matrix
     let M = matIdentity();
     if(prof && prof.matrix && fi>0){
-      const base=prof.matrix;
-      M = base.map((v,i)=> v*fi + M[i]*(1-fi));
+      const b=prof.matrix;
+      M = b.map((v,i)=> v*fi + M[i]*(1-fi));
     }
     let sat = 1 + ((color.saturation||0)*0.9);
     if(prof && prof.saturation!=null && fi>0) sat *= (1+(prof.saturation-1)*fi);
@@ -107,6 +183,9 @@
     let grainAmt=(film.grain||0)+(prof&&prof.grainAmt!=null?prof.grainAmt*fi:0);
     let grainSize=(film.grainSize==null?0.5:film.grainSize);
     if(prof&&prof.grainSize!=null) grainSize=grainSize*(1-fi)+prof.grainSize*fi;
+    // Fuji grain effect overrides the size when active (sim's own size applies otherwise)
+    if((fj.grainEffect||'off')!=='off' && film.grainSize!=null &&
+       (film.grainSize===0.75 || film.grainSize===0.35)) grainSize=film.grainSize;
     let grainStr=(film.grainStrength==null?0.5:film.grainStrength);
     let halation=(film.halation||0)+(prof&&prof.halation!=null?prof.halation*fi:0);
     let bloom=(film.bloom||0)+(prof&&prof.bloom!=null?prof.bloom*fi:0);
@@ -255,6 +334,10 @@
   global.FUJI.math = { LUMA, clamp01, clamp, smoothstep, matIdentity, matMultiply, satMatrix,
     neutralCurve, sampleCurve, curveToArray, blendCurves, applyToneCurve,
     bakeParams, buildWB, buildHSLMatrix };
+  global.FUJI.v3 = global.FUJI.v3 || {};
+  global.FUJI.v3.applyFuji = applyFuji;
+  global.FUJI.v3.fujiDefaults = fujiDefaults;
+  global.FUJI.v3.WB_MODE_TEMP = WB_MODE_TEMP;
   global.FUJI.hsl = {
     bands: HSL_BANDS,
     keys: HSL_KEYS,

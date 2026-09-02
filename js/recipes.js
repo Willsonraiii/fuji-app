@@ -6,13 +6,36 @@
   const { deepClone } = global.FUJI;
 
   const STORE_KEY = "fuji.recipes.v1";
+  const FAV_KEY = "fuji.favorites.v1";
   let recipes = [];
+  let favs = [];
+
+  function loadFavs(){
+    try{
+      const raw = localStorage.getItem(FAV_KEY);
+      favs = raw ? JSON.parse(raw) : [];
+      if(!Array.isArray(favs)) favs = [];
+    }catch(e){ favs=[]; }
+    return favs;
+  }
+  function saveFavs(){
+    try{ localStorage.setItem(FAV_KEY, JSON.stringify(favs)); }catch(e){}
+  }
+  function isFav(id){ return favs.indexOf(id) >= 0; }
+  function toggleFav(id){
+    const i = favs.indexOf(id);
+    if(i >= 0) favs.splice(i, 1);
+    else favs.push(id);
+    saveFavs();
+    return i < 0;
+  }
 
   function load(){
     try{
       const raw = localStorage.getItem(STORE_KEY);
       recipes = raw ? JSON.parse(raw) : [];
     }catch(e){ recipes=[]; }
+    loadFavs();
     return recipes;
   }
   function save(){
@@ -22,8 +45,8 @@
   function uid(){ return "rc_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
   function normalize(state){
-    // to store only meaningful stored profile reference is enough — we keep the full
-    // adjustment state (excluding recipe-specific intensity).
+    // store the full adjustment state incl. Fuji camera-style settings
+    // (excluding recipe-specific intensity).
     const s = {
       profileId: state.profileId,
       film: deepClone(state.film),
@@ -31,7 +54,8 @@
       light: deepClone(state.light),
       color: deepClone(state.color),
       grade: deepClone(state.grade),
-      detail: deepClone(state.detail)
+      detail: deepClone(state.detail),
+      fuji: deepClone(state.fuji || {})
     };
     return s;
   }
@@ -103,6 +127,19 @@
         }
       }
     }
+    // Fuji camera-style settings: numeric values scale with intensity,
+    // enum values pass through at full strength.
+    State.cur.fuji = Object.assign({}, State.cur.fuji||{});
+    const fp = p.fuji||{};
+    for(const k of ["highlightTone","shadowTone","color","sharpness","hNR","clarity"]){
+      if(typeof fp[k]==="number") State.cur.fuji[k] = fp[k]*t;
+    }
+    if(fp.dr) State.cur.fuji.dr = fp.dr;
+    if(fp.grainEffect) State.cur.fuji.grainEffect = fp.grainEffect;
+    if(fp.grainSize) State.cur.fuji.grainSize = fp.grainSize;
+    if(fp.chromeFx) State.cur.fuji.chromeFx = fp.chromeFx;
+    if(fp.chromeFxBlue) State.cur.fuji.chromeFxBlue = fp.chromeFxBlue;
+    if(fp.wbMode) State.cur.fuji.wbMode = fp.wbMode;
     State.cur.film.grain = (p.film?.grain||0)*t;
     State.cur.film.halation = (p.film?.halation||0)*t;
     State.cur.film.bloom = (p.film?.bloom||0)*t;
@@ -164,6 +201,7 @@
     load, getRecipes, createRecipe, duplicateRecipe, deleteRecipe,
     toggleFavorite, renameRecipe, setIntensity, getRecipe, applyToState,
     exportJSON, importJSON, save,
-    builtinRecipes, allRecipes
+    builtinRecipes, allRecipes,
+    loadFavs, saveFavs, isFav, toggleFav
   };
 })(typeof window!=="undefined"?window:globalThis);

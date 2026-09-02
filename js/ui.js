@@ -57,6 +57,7 @@
 
   App.ui.activeTool = null;
   App.ui.openTool = function(id, btn){
+    if(App.exitWBPick) App.exitWBPick();
     document.querySelectorAll('#bottom-bar .tool').forEach(x=>x.classList.remove('active'));
     if(btn) btn.classList.add('active');
     App.ui.activeTool=id;
@@ -127,6 +128,7 @@
     return row;
   }
   function fmtVal(v, f){
+    if(f==='signed') return (v>0?'+':'')+Math.round(v*100)/100;
     if(f==='pct') return Math.round(v*100)+'%';
     if(f===undefined) return v;
     return Math.round(v*100)/100;
@@ -138,14 +140,73 @@
   function group(label){ const d=document.createElement('div'); d.className='group-label'; d.textContent=label; return d; }
   function divider(){ const d=document.createElement('div'); d.className='section-divider'; return d; }
 
-  /* ================= FILM SHEET ================= */
+  /* ================= FILM SHEET =================
+     Real Fujifilm film simulations + Fuji camera-style settings that
+     customize the sim per photo: DR, tone, color, detail, grain,
+     Color Chrome effects, clarity, white balance preset. */
+  function fujiSeg(opts){
+    const wrap=document.createElement('div'); wrap.className='fuji-row';
+    if(opts.label){
+      const l=document.createElement('div'); l.className='fuji-label';
+      l.textContent=opts.label; wrap.appendChild(l);
+    }
+    const seg=document.createElement('div'); seg.className='segment';
+    opts.options.forEach(o=>{
+      const b=document.createElement('div');
+      b.className='seg'+(String(o.v)===String(opts.value)?' active':'');
+      b.textContent=o.label; b.dataset.v=String(o.v);
+      b.addEventListener('click', ()=>{
+        seg.querySelectorAll('.seg').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        if(App.state && App.state.setPartial){
+          App.state.setPartial('fuji.'+opts.key, o.v);
+          if(App.renderFull) App.renderFull();
+          if(App.updateHistoryFlags) App.updateHistoryFlags();
+        }
+      });
+      seg.appendChild(b);
+    });
+    wrap.appendChild(seg);
+    return wrap;
+  }
+  function fujiSlider(opt){
+    return sliderRow(Object.assign({ path:'fuji.'+opt.key, fmt:'signed', step:opt.step||1 }, opt));
+  }
+
   App.ui.filmContent = function(){
     const el=document.createElement('div');
     const prof=App.sourceProfileId||App.state.cur.profileId;
+    const f = App.state.cur.fuji || {};
     el.appendChild(presetCarousel(prof?prof:'off'));
+
     el.appendChild(group('Film intensity'));
     el.appendChild(sliderRow({label:'Intensity',min:0,max:1,step:0.01,value:App.state.cur.film.intensity,fmt:'pct',path:'film.intensity',icon:'◐'}));
     el.appendChild(divider());
+
+    /* ---- Fuji camera settings (per-image) ---- */
+    el.appendChild(group('Fuji camera settings'));
+    el.appendChild(fujiSeg({key:'dr', label:'Dynamic range', value:f.dr,
+      options:[{v:'auto',label:'Auto'},{v:100,label:'100'},{v:200,label:'200'},{v:400,label:'400'}]}));
+    el.appendChild(fujiSlider({key:'highlightTone', label:'Highlight tone', min:-2, max:4, value:f.highlightTone}));
+    el.appendChild(fujiSlider({key:'shadowTone', label:'Shadow tone', min:-2, max:4, value:f.shadowTone}));
+    el.appendChild(fujiSlider({key:'color', label:'Color', min:-4, max:4, value:f.color}));
+    el.appendChild(fujiSlider({key:'clarity', label:'Clarity', min:-5, max:5, value:f.clarity}));
+    el.appendChild(fujiSlider({key:'sharpness', label:'Sharpness', min:-4, max:4, value:f.sharpness}));
+    el.appendChild(fujiSlider({key:'hNR', label:'High ISO NR', min:-4, max:4, value:f.hNR}));
+    el.appendChild(fujiSeg({key:'grainEffect', label:'Grain effect', value:f.grainEffect,
+      options:[{v:'off',label:'Off'},{v:'weak',label:'Weak'},{v:'strong',label:'Strong'}]}));
+    el.appendChild(fujiSeg({key:'grainSize', label:'Grain size', value:f.grainSize,
+      options:[{v:'small',label:'Small'},{v:'large',label:'Large'}]}));
+    el.appendChild(fujiSeg({key:'chromeFx', label:'Color Chrome FX', value:f.chromeFx,
+      options:[{v:'off',label:'Off'},{v:'weak',label:'Weak'},{v:'strong',label:'Strong'}]}));
+    el.appendChild(fujiSeg({key:'chromeFxBlue', label:'Color Chrome FX Blue', value:f.chromeFxBlue,
+      options:[{v:'off',label:'Off'},{v:'weak',label:'Weak'},{v:'strong',label:'Strong'}]}));
+    el.appendChild(fujiSeg({key:'wbMode', label:'White balance preset', value:f.wbMode,
+      options:[{v:'auto',label:'Auto'},{v:'daylight',label:'Day'},{v:'cloudy',label:'Cloud'},{v:'shade',label:'Shade'},
+               {v:'tungsten',label:'Tung'},{v:'fluorescent',label:'Fluo'},{v:'flash',label:'Flash'}]}));
+    el.appendChild(divider());
+
+    /* ---- creative extras ---- */
     el.appendChild(group('Grain & Glow'));
     el.appendChild(sliderRow({label:'Grain',min:0,max:1,step:0.01,value:App.state.cur.film.grain,fmt:'pct',path:'film.grain',icon:'⁙'}));
     el.appendChild(sliderRow({label:'Grain size',min:0,max:1,step:0.01,value:App.state.cur.film.grainSize,path:'film.grainSize',icon:'⬛'}));
@@ -157,12 +218,13 @@
   };
   function presetCarousel(selId){
     const wrap=document.createElement('div'); wrap.className='preset-carousel';
-    const profs=global.FUJI.profiles;
+    const profs = global.FUJI.simProfiles ? global.FUJI.simProfiles() : global.FUJI.profiles;
     ( [{id:'off',name:'Original',type:'None',bw:false,swatch:'#333',off:true}].concat(profs) ).forEach(p=>{
       const item=document.createElement('div'); item.className='preset-item'+(p.id===selId?' active':'');
       item.dataset.id=p.id;
       const badge = p.bw ? '<span class="grayscale-badge">BW</span>' : '';
-      item.innerHTML=`<div class="preset-thumb" style="background:${p.swatch}">${badge}</div>
+      const fujiBadge = p.sim ? '<span class="fuji-badge">FUJI</span>' : '';
+      item.innerHTML=`<div class="preset-thumb" style="background:${p.swatch}">${fujiBadge}${badge}</div>
         <div class="preset-name">${p.name}</div>`;
       item.addEventListener('click', ()=>{
         document.querySelectorAll('.preset-item').forEach(x=>x.classList.remove('active'));
@@ -223,6 +285,12 @@
     el.appendChild(group('White balance'));
     el.appendChild(sliderRow({label:'Temperature',min:-1,max:1,step:0.01,value:c.temperature,path:'color.temperature',icon:'☀'}));
     el.appendChild(sliderRow({label:'Tint',min:-1,max:1,step:0.01,value:c.tint,path:'color.tint',icon:'♣'}));
+    const wbBar=document.createElement('div'); wbBar.className='confirm-bar wb-bar';
+    wbBar.innerHTML=`<button class="btn-ghost" id="wb-auto">✨ Auto WB</button>
+      <button class="btn-ghost" id="wb-pick">⌖ Pick from photo</button>`;
+    wbBar.querySelector('#wb-auto').addEventListener('click', ()=>{ if(App.onAutoWB)App.onAutoWB(); });
+    wbBar.querySelector('#wb-pick').addEventListener('click', ()=>{ if(App.onWBPick)App.onWBPick(); });
+    el.appendChild(wbBar);
     el.appendChild(divider());
     el.appendChild(group('Color'));
     el.appendChild(sliderRow({label:'Vibrance',min:-1,max:1,step:0.01,value:c.vibrance,path:'color.vibrance',icon:'◒'}));
@@ -336,7 +404,9 @@
     body.appendChild(search);
     // category chips
     const chips=document.createElement('div'); chips.className='recipe-chips';
-    const cats = global.FUJI.fujiRecipes.categories();
+    const cats = ['all','favorites'].concat(
+      global.FUJI.fujiRecipes.categories().filter(c=>c!=='all')
+    );
     cats.forEach(c=>{
       const b=document.createElement('button');
       b.className='recipe-chip'+(App.ui._recipeFilter.category===c?' active':'');
@@ -389,8 +459,9 @@
     let recs = global.FUJI.recipes.allRecipes();
     // apply filters
     recs = recs.filter(r => {
+      if(f.category === 'favorites' && !(r.builtin ? global.FUJI.recipes.isFav(r.id) : !!r.favorite)) return false;
       if(r.builtin){
-        if(f.category !== 'all' && (r.fuji?.category||'general') !== f.category) return false;
+        if(f.category !== 'all' && f.category !== 'favorites' && (r.fuji?.category||'general') !== f.category) return false;
         if(f.q){
           const q=f.q.toLowerCase();
           const blob = [
@@ -415,13 +486,19 @@
       const sub = r.builtin
         ? `<span class="fuji-tag">FUJI</span> ${r.fuji?r.fuji.filmSim:'Recipe'}${r.fuji&&r.fuji.source?' · '+escapeHtml(r.fuji.source):''}${cat?' · '+cat:''}`
         : (prof?prof.name:'Custom')+' · '+Math.round(r.intensity*100)+'%';
+      const isFav = r.builtin ? global.FUJI.recipes.isFav(r.id) : !!r.favorite;
       card.innerHTML=`
         <div class="rc-thumb" style="background:${prof?prof.swatch:'#333'}"></div>
         <div class="rc-info"><div class="rc-name">${escapeHtml(r.name)}</div>
           <div class="rc-sub">${sub}</div></div>
-        <button class="rc-fav ${r.favorite?'active':''}" title="Favorite">${r.favorite?'♥':'♡'}</button>
+        <button class="rc-fav ${isFav?'active':''}" title="Favorite">${isFav?'♥':'♡'}</button>
         <button class="rc-apply" title="Apply">${icon('check')}</button>`;
-      card.querySelector('.rc-fav').addEventListener('click', (e)=>{ e.stopPropagation(); if(r.builtin) return; global.FUJI.recipes.toggleFavorite(r.id); App.state&&App.state.emitRecipes(); if(App.ui.renderRecipeList)App.ui.renderRecipeList(); });
+      card.querySelector('.rc-fav').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(r.builtin) global.FUJI.recipes.toggleFav(r.id);
+        else global.FUJI.recipes.toggleFavorite(r.id);
+        App.state&&App.state.emitRecipes(); if(App.ui.renderRecipeList)App.ui.renderRecipeList();
+      });
       card.querySelector('.rc-apply').addEventListener('click', (e)=>{ e.stopPropagation(); App.onRecipeApply&&App.onRecipeApply(r.id); });
       card.addEventListener('click', ()=> App.ui.showRecipeDetail && App.ui.showRecipeDetail(r));
       card.addEventListener('contextmenu',(e)=>{ e.preventDefault(); App.ui.recipeMenu(r.id); });
@@ -457,35 +534,24 @@
         <div class="rd-sub">${escapeHtml(r.fuji?.filmSim||'')} · ${escapeHtml(r.fuji?.camera||'')}</div>
       </div>`;
     body.appendChild(head);
-    // detail rows (mapped from the actual app state)
+    // detail rows — real Fuji camera settings straight from the recipe
+    const f = r.builtin ? (r.fujiSettings || (r.fuji && r.fuji.fujiSettings)) : (r.preset&&r.preset.fuji);
     const s = r.state || (r.preset);
     const rows=[];
     rows.push(['Profile', (prof?prof.name:r.preset.profileId)]);
-    rows.push(['Film sim', (r.fuji?.simulation||'')]);
-    if(s.light){
-      const L=s.light;
-      if(L.exposure) rows.push(['Exposure', fmtVal(L.exposure,'pct')]);
-      if(L.highlights) rows.push(['Highlights', fmtVal(L.highlights,'pct')]);
-      if(L.shadows) rows.push(['Shadows', fmtVal(L.shadows,'pct')]);
-      if(L.contrast) rows.push(['Contrast', fmtVal(L.contrast,'pct')]);
-    }
-    if(s.color){
-      const C=s.color;
-      if(C.temperature) rows.push(['Temperature', fmtVal(C.temperature,'pct')]);
-      if(C.tint) rows.push(['Tint', fmtVal(C.tint,'pct')]);
-      if(C.vibrance) rows.push(['Vibrance', fmtVal(C.vibrance,'pct')]);
-      if(C.saturation) rows.push(['Saturation', fmtVal(C.saturation,'pct')]);
-    }
-    if(s.detail){
-      const D=s.detail;
-      if(D.clarity) rows.push(['Clarity', fmtVal(D.clarity,'pct')]);
-      if(D.sharp) rows.push(['Sharpening', fmtVal(D.sharp,'pct')]);
-    }
-    if(s.film){
-      const F=s.film;
-      if(F.grain) rows.push(['Grain', fmtVal(F.grain,'pct')]);
-      if(F.halation) rows.push(['Halation', fmtVal(F.halation,'pct')]);
-      if(F.bloom) rows.push(['Bloom', fmtVal(F.bloom,'pct')]);
+    rows.push(['Film sim', (r.fuji?.filmSim||r.fuji?.simulation||'')]);
+    if(f){
+      if(f.dynamicRange) rows.push(['Dynamic range', 'DR' + f.dynamicRange]);
+      if(f.whiteBalance) rows.push(['White balance', f.whiteBalance + (f.wbShiftR!=null||f.wbShiftB!=null ? `  ${fmtShift(f.wbShiftR||0, f.wbShiftB||0)}` : '')]);
+      if(f.highlight!=null) rows.push(['Highlight tone', fmtSigned(f.highlight)]);
+      if(f.shadow!=null) rows.push(['Shadow tone', fmtSigned(f.shadow)]);
+      if(f.color!=null) rows.push(['Color', fmtSigned(f.color)]);
+      if(f.sharpness!=null) rows.push(['Sharpness', fmtSigned(f.sharpness)]);
+      if(f.highISONR!=null) rows.push(['High ISO NR', fmtSigned(f.highISONR)]);
+      if(f.clarity!=null) rows.push(['Clarity', fmtSigned(f.clarity)]);
+      if(f.grainEffect && f.grainEffect!=='off') rows.push(['Grain', cap(f.grainEffect)+' · '+cap(f.grainSize)]);
+      if(f.colorChromeEffect && f.colorChromeEffect!=='off') rows.push(['Color Chrome FX', cap(f.colorChromeEffect)]);
+      if(f.colorChromeFxBlue && f.colorChromeFxBlue!=='off') rows.push(['Color Chrome FX Blue', cap(f.colorChromeFxBlue)]);
     }
     if(s.vignette) rows.push(['Vignette', fmtVal(s.vignette,'pct')]);
     if(r.fuji?.scene && r.fuji.scene.length) rows.push(['Scene', r.fuji.scene.map(escapeHtml).join(', ')]);
@@ -503,7 +569,7 @@
       <button class="btn-ghost" id="rd-export">${icon('check')}<span>Export</span></button>`;
     bar.querySelector('#rd-apply').addEventListener('click', ()=>{ App.onRecipeApply&&App.onRecipeApply(r.id); layer.classList.add('closing'); setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); },280); });
     bar.querySelector('#rd-export').addEventListener('click', ()=>{
-      const data = r.builtin && r.fuji ? r.fuji : r.preset;
+      const data = r.builtin && (r.fujiSettings||r.fuji) ? (r.fujiSettings||r.fuji) : r.preset;
       App.downloadJSON(JSON.stringify(data,null,2), r.name.replace(/\W+/g,'_')+'.fuji.json');
     });
     bar.querySelector('#rd-share').addEventListener('click', async ()=>{
@@ -560,6 +626,9 @@
   };
 
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtSigned(v){ const n=Math.round(v*100)/100; return (n>0?'+':'')+n; }
+  function fmtShift(r,b){ const s=[]; if(r) s.push((r>0?'+':'')+r+'R'); if(b) s.push((b>0?'+':'')+b+'B'); return s.length? ('('+s.join(' ')+')') : ''; }
+  function cap(s){ return String(s).charAt(0).toUpperCase()+String(s).slice(1); }
 
   /* ================= BEFORE / AFTER ================= */
   App.ui.baMode = 'off';
