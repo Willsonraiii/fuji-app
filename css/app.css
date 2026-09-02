@@ -236,7 +236,19 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   width: 40px; height: 4px; border-radius: 3px; background: rgba(255,255,255,0.2);
   margin: 10px auto 6px; flex-shrink: 0;
 }
-#sheet-body { overflow-y: auto; overscroll-behavior: contain; padding: 0 18px 18px; -webkit-overflow-scrolling: touch; }
+#sheet-body {
+  overflow-y: auto; overscroll-behavior: contain; padding: 0 18px 18px;
+  -webkit-overflow-scrolling: touch; flex: 1 1 auto; min-height: 0;
+}
+/* Recipe / detail / export bodies are their own scroll containers inside
+   the flex-column sheet. Without overflow + flex sizing, the list overflows
+   the sheet's max-height and scrolling freezes. */
+#recipe-body, #recipe-detail-body, #export-body {
+  overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto; min-height: 0;
+}
 
 /* Sheet header */
 .sheet-title {
