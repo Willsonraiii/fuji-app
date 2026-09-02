@@ -3,3 +3,5 @@ tools
 smoke
 preview
 .vercel
+# Test suite (runs in CI, never served)
+test

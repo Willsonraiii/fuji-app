@@ -9,7 +9,6 @@
   const FUJI = global.FUJI;
 
   const $ = sel => document.querySelector(sel);
-  const $$ = sel => Array.prototype.slice.call(document.querySelectorAll(sel));
 
   /* ---------------- Canvas / engine setup ---------------- */
   const viewCanvas = $('#view-canvas');
@@ -66,10 +65,16 @@
     updateMeta(w,h);
   }
   App.renderOrig = function(){ render(1); };
+  /* Resolution chip = "3024×4032 · FUJIFILM X-T5 · ISO 1600" when EXIF is known.
+     App.exifLabel is read by the export sheet (ui.js), so keep it in sync here. */
+  App.exifLabel = '';
   function updateMeta(w,h){
-    $('#meta-res').textContent = photo.w + '×' + photo.h;
-    $('#meta-zoom').textContent = Math.max(w,h) >= Math.min(photo.w,photo.h) ? 'Full' : Math.round(Math.min(w,h)/Math.min(photo.w,photo.h)*100)+'%';
+    const res = photo.w + '×' + photo.h;
+    const resChip = $('#meta-res'), zoomChip = $('#meta-zoom');
+    if(resChip) resChip.textContent = App.exifLabel ? res + ' · ' + App.exifLabel : res;
+    if(zoomChip) zoomChip.textContent = Math.max(w,h) >= Math.min(photo.w,photo.h) ? 'Full' : Math.round(Math.min(w,h)/Math.min(photo.w,photo.h)*100)+'%';
   }
+  App.refreshMeta = function(){ if(photo) updateMeta(fit.w*renderScale, fit.h*renderScale); };
   let pendingRAF=0;
   /* live/low-res preview while dragging; high-res when committed */
   function scheduleRender(){
@@ -237,6 +242,7 @@
       if(!engine){ App.toast('WebGL not available on this device'); return; }
       App.engine=engine;
     }
+    App.exifLabel = '';
     App.ui.buildCompareBar();
     $('#home').classList.add('hidden');
     $('#editor').classList.remove('hidden');
@@ -259,12 +265,9 @@
     if(file){ try { exif = await FUJI.context.readEXIF(file); } catch(e){ exif=null; } }
     const scene = FUJI.context.analyzeScene(canvas);
     App.context = { exif, scene: scene.tags, sceneFull: scene, auto: FUJI.context.autoAdjust(exif, scene) };
-    // meta chips: camera + ISO if present
-    const cam = exif ? `${exif.make} ${exif.model}`.replace(/^\s+|\s+$/g,'') : '';
-    if(cam) $('#meta-res').textContent = cam;
-    const exifChip = exif && exif.iso ? `ISO ${exif.iso}${exif.focalLength?` · ${Math.round(exif.focalLength)}mm`:''}` : '';
-    const meta = $$('#stage-meta');
-    if(meta && meta[1]) meta[1].textContent = exifChip || (photo.w + '×' + photo.h);
+    // camera / exposure line, shared by the stage chip and the export sheet
+    App.exifLabel = (exif && FUJI.context.exifSummary) ? FUJI.context.exifSummary(exif) : '';
+    App.refreshMeta();
     App.toast(`Detected: ${scene.tags.length ? scene.tags.join(', ') : 'no scene hints'}`);
   }
   /* keep a transition message */
@@ -455,7 +458,7 @@
     const ctx=c.getContext('2d'); ctx.imageSmoothingQuality='high';
     ctx.drawImage(photo.canvas, sx,sy,sw,sh, 0,0,c.width,c.height);
     const prev=FUJI.deepClone(App.state.cur);
-    photo={ canvas:c, w:c.width,h:c.height, name:photo.name, type:photo.type };
+    photo={ canvas:c, w:c.width,h:c.height, name:photo.name, type:photo.type, token:Date.now() };
     cropState=null;
     $('#crop-overlay').classList.add('hidden');
     App.state.commit(prev);   // undoable crop

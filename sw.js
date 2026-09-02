@@ -1,7 +1,10 @@
 /* F-UJI service worker — offline app shell
    Network-first for HTML/JS/CSS (fresh updates when online, cached when offline),
    cache-first for static assets (icons/manifest). */
-const CACHE = 'fuji-v6';
+const CACHE = 'fuji-v7';
+/* Keep this list in sync with the <script>/<link> tags in index.html —
+   `npm test` fails if an app file is missing here (a cold offline launch
+   would otherwise boot without the cached script and die). */
 const ASSETS = [
   './',
   './index.html',
@@ -11,6 +14,8 @@ const ASSETS = [
   './js/state.js',
   './js/session.js',
   './js/recipes.js',
+  './js/fujiRecipes.js',
+  './js/context.js',
   './js/ui.js',
   './js/main.js',
   './manifest.json',

@@ -112,6 +112,8 @@
   function applyToState(recipe, State){
     const p = recipe.preset;
     const t = recipe.intensity;
+    // snapshot before touching State.cur — commit() pushes this as the undo step
+    const prev = deepClone(State.cur);
     State.cur.profileId = p.profileId;
     State.cur.film.intensity = p.film.intensity * t;
     // scale manual adjustments by t
@@ -145,7 +147,7 @@
     State.cur.film.bloom = (p.film?.bloom||0)*t;
     State.cur.film.grainSize = p.film?.grainSize??0.5;
     State.cur.film.grainStrength = p.film?.grainStrength??0.5;
-    State.commit(deepClone(State.cur));
+    State.commit(prev);
   }
 
   /* Export all recipes (or a single one) as JSON */
