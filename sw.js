@@ -1,7 +1,7 @@
 /* F-UJI service worker — offline app shell
    Network-first for HTML/JS/CSS (fresh updates when online, cached when offline),
    cache-first for static assets (icons/manifest). */
-const CACHE = 'fuji-v6';
+const CACHE = 'fuji-v7';
 const ASSETS = [
   './',
   './index.html',
@@ -11,11 +11,20 @@ const ASSETS = [
   './js/state.js',
   './js/session.js',
   './js/recipes.js',
+  './js/fujiRecipes.js',
+  './js/samples.js',
+  './js/context.js',
   './js/ui.js',
   './js/main.js',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './samples/landscape.jpg',
+  './samples/portrait.jpg',
+  './samples/street.jpg',
+  './samples/food.jpg',
+  './samples/night.jpg',
+  './samples/architecture.jpg'
 ];
 
 self.addEventListener('install', e => {

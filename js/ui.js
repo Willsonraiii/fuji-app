@@ -27,7 +27,8 @@
     heart:'<path d="M12 20s-7-4.5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.5-9 9-9 9z"/>',
     share:'<path d="M12 3v12 M7 8l5-5 5 5"/><path d="M5 13v7h14v-7"/>',
     export:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
-    compare:'<path d="M3 6h18v12H3z M12 6v12"/>'
+    compare:'<path d="M3 6h18v12H3z M12 6v12"/>',
+    back:'<path d="M15 19l-7-7 7-7"/>'
   };
   function icon(name, cls){ return `<svg class="${cls||''}" viewBox="0 0 24 24">${ICONS[name]||''}</svg>`; }
 
@@ -73,14 +74,15 @@
     else if(id==='color') content = App.ui.colorContent();
     else if(id==='detail') content = App.ui.detailContent();
     else if(id==='crop') content = App.ui.cropContent();
-    const resetBtn=document.createElement('button'); resetBtn.className='st-reset'; resetBtn.id='sheet-reset'; resetBtn.textContent='Reset';
-    const titleEl=document.createElement('div'); titleEl.className='sheet-title';
-    const label=document.createElement('span'); label.className='st-label'; label.textContent=title.label;
-    titleEl.appendChild(label); titleEl.appendChild(resetBtn);
     body.innerHTML='';
-    body.appendChild(titleEl);
+    body.appendChild(App.ui.sheetHeader({
+      label: title.label,
+      backLabel: 'Back to editor',
+      onBack: ()=> App.ui.closeLayer(layer),
+      resetLabel: 'Reset',
+      onReset: ()=> App.resetTools && App.resetTools()
+    }));
     if(content) body.appendChild(content);
-    resetBtn.addEventListener('click', ()=>App.resetTools&&App.resetTools());
     App.ui.bindSheetContent(id, body);
     body.scrollTop=0;
     App.ui.showSheet(layer, sheet);
@@ -97,16 +99,48 @@
       layer.dataset.bm='1';
     }
   };
-  App.ui.closeLayer = function(layer){
+  /* Animate a layer closed without touching the toolbar state. */
+  App.ui.hideLayer = function(layer){
+    if(!layer || layer.classList.contains('hidden')) return;
     layer.classList.add('closing');
+    setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); }, 360);
+  };
+  App.ui.closeLayer = function(layer){
+    App.ui.hideLayer(layer);
     App.ui.activeTool=null;
     document.querySelectorAll('#bottom-bar .tool').forEach(x=>x.classList.remove('active'));
-    setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); },320);
   };
   App.ui.closeSheet = function(done){
-    const layer = $$('#sheet-layer');
-    layer.classList.add('closing');
-    setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); if(done)done(); },320);
+    App.ui.hideLayer($$('#sheet-layer'));
+    if(done) setTimeout(done, 360);
+  };
+  /* Close every open sheet (tool / recipes / detail / export) → editor. */
+  App.ui.closeAllSheets = function(){
+    document.querySelectorAll('.sheet-layer').forEach(l => App.ui.hideLayer(l));
+    App.ui.activeTool=null;
+    document.querySelectorAll('#bottom-bar .tool').forEach(x=>x.classList.remove('active'));
+  };
+  /* Shared sheet header: 36px round back chevron + label (+ optional Reset). */
+  App.ui.sheetHeader = function(opts){
+    const title=document.createElement('div');
+    title.className='sheet-title';
+    const back=document.createElement('button');
+    back.className='st-back'; back.type='button';
+    back.setAttribute('aria-label', opts.backLabel || 'Back');
+    back.innerHTML = icon('back');
+    back.addEventListener('click', ()=> opts.onBack && opts.onBack());
+    title.appendChild(back);
+    const label=document.createElement('span');
+    label.className='st-label'; label.textContent=opts.label;
+    title.appendChild(label);
+    if(opts.resetLabel){
+      const reset=document.createElement('button');
+      reset.className='st-reset'; reset.type='button';
+      reset.textContent=opts.resetLabel;
+      reset.addEventListener('click', ()=> opts.onReset && opts.onReset());
+      title.appendChild(reset);
+    }
+    return title;
   };
 
   /* ---------- Sheet builder utilities ---------- */
@@ -385,9 +419,11 @@
     const layer=$$('#recipe-layer');
     const body=$$('#recipe-body');
     body.innerHTML='';
-    const header=document.createElement('div'); header.className='recipe-header';
-    header.innerHTML=`<div class="sheet-title"><span class="st-label">Recipes</span></div>`;
-    body.appendChild(header);
+    body.appendChild(App.ui.sheetHeader({
+      label: 'Recipes',
+      backLabel: 'Back to editor',
+      onBack: ()=> App.ui.closeLayer(layer)
+    }));
     // search
     const search=document.createElement('div'); search.className='recipe-search';
     search.innerHTML=`<input id="r-search" type="search" placeholder="Search Fuji recipes…  e.g. Kodachrome, Portra, Bleach Bypass" autocomplete="off"/>
@@ -488,11 +524,16 @@
         : (prof?prof.name:'Custom')+' · '+Math.round(r.intensity*100)+'%';
       const isFav = r.builtin ? global.FUJI.recipes.isFav(r.id) : !!r.favorite;
       card.innerHTML=`
-        <div class="rc-thumb" style="background:${prof?prof.swatch:'#333'}"></div>
+        <div class="rc-thumb"></div>
         <div class="rc-info"><div class="rc-name">${escapeHtml(r.name)}</div>
           <div class="rc-sub">${sub}</div></div>
         <button class="rc-fav ${isFav?'active':''}" title="Favorite">${isFav?'♥':'♡'}</button>
         <button class="rc-apply" title="Apply">${icon('check')}</button>`;
+      const thumb=card.querySelector('.rc-thumb');
+      thumb.style.backgroundColor = prof ? prof.swatch : '#333';
+      if(global.FUJI.samples && global.FUJI.samples.mountSample){
+        try{ global.FUJI.samples.mountSample(thumb, r, { width: 132, height: 99 }); }catch(e){}
+      }
       card.querySelector('.rc-fav').addEventListener('click', (e)=>{
         e.stopPropagation();
         if(r.builtin) global.FUJI.recipes.toggleFav(r.id);
@@ -521,10 +562,17 @@
     const body=$$('#recipe-detail-body');
     body.innerHTML='';
     const prof=global.FUJI.getProfile(r.preset.profileId);
-    const close=document.createElement('div'); close.className='sheet-title';
-    close.innerHTML=`<span class="st-label">${escapeHtml(r.name)}</span><button class="icon-btn" id="rd-close">${icon('close')}</button>`;
-    close.querySelector('#rd-close').addEventListener('click', ()=>{ layer.classList.add('closing'); setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); },280); });
-    body.appendChild(close);
+    body.appendChild(App.ui.sheetHeader({
+      label: r.name,
+      backLabel: 'Back to recipes',
+      onBack: ()=> App.ui.hideLayer(layer)
+    }));
+    // Real sample preview rendered through the app's CPU engine + recipe look.
+    const sample=document.createElement('div'); sample.className='rd-sample';
+    if(global.FUJI.samples && global.FUJI.samples.mountSample){
+      try{ global.FUJI.samples.mountSample(sample, r, { width: 300, height: 225, badge: 'Hold to compare original' }); }catch(e){}
+    }
+    body.appendChild(sample);
     // swatch + meta
     const head=document.createElement('div'); head.className='rd-head';
     head.innerHTML=`<div class="rd-swatch" style="background:${prof?prof.swatch:'#333'}"></div>
@@ -567,7 +615,7 @@
     bar.innerHTML=`<button class="btn-primary" id="rd-apply">Apply</button>
       <button class="btn-ghost" id="rd-share">${icon('share')}<span>Share link</span></button>
       <button class="btn-ghost" id="rd-export">${icon('check')}<span>Export</span></button>`;
-    bar.querySelector('#rd-apply').addEventListener('click', ()=>{ App.onRecipeApply&&App.onRecipeApply(r.id); layer.classList.add('closing'); setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); },280); });
+    bar.querySelector('#rd-apply').addEventListener('click', ()=>{ App.onRecipeApply&&App.onRecipeApply(r.id); });
     bar.querySelector('#rd-export').addEventListener('click', ()=>{
       const data = r.builtin && (r.fujiSettings||r.fuji) ? (r.fujiSettings||r.fuji) : r.preset;
       App.downloadJSON(JSON.stringify(data,null,2), r.name.replace(/\W+/g,'_')+'.fuji.json');
@@ -583,7 +631,11 @@
     });
     body.appendChild(bar);
     layer.classList.remove('hidden');
-    layer.querySelector('.sheet-backdrop') && layer.querySelector('.sheet-backdrop').addEventListener('click', ()=>{ layer.classList.add('closing'); setTimeout(()=>{ layer.classList.add('hidden'); layer.classList.remove('closing'); },280); }, { once:true });
+    const bd = layer.querySelector('.sheet-backdrop');
+    if(bd && !layer.dataset.bm){
+      bd.addEventListener('click', ()=> App.ui.hideLayer(layer));
+      layer.dataset.bm='1';
+    }
   };
 
   /* ---------- Import from URL (share link) ---------- */
@@ -668,11 +720,11 @@
   App.ui.openExport = function(){
     const layer=$$('#export-layer'); const body=$$('#export-body');
     body.innerHTML='';
-    const h=document.createElement('div'); h.className='sheet-title';
-    h.innerHTML='<span class="st-label">Export</span><button class="icon-btn" id="ex-close"></button>';
-    h.querySelector('#ex-close').innerHTML=icon('close');
-    h.querySelector('#ex-close').addEventListener('click',()=>{ layer.classList.add('closing'); setTimeout(()=>{layer.classList.add('hidden');layer.classList.remove('closing');},320); });
-    body.appendChild(h);
+    body.appendChild(App.ui.sheetHeader({
+      label: 'Export',
+      backLabel: 'Back to editor',
+      onBack: ()=> App.ui.closeLayer(layer)
+    }));
     // preview
     App.exportPreview=document.createElement('div'); App.exportPreview.className='export-preview hidden';
     body.appendChild(App.exportPreview);
