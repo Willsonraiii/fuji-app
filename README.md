@@ -76,6 +76,32 @@ Node 18/20/22 for pushes and PRs to `main`. `npm ci` is kept so the (empty)
 lockfile is verified — if a dependency is ever added without a lockfile, CI
 says so loudly instead of at deploy time.
 
+## Deployment
+
+Vercel serves this repo as-is (no build): `vercel.json` pins
+`framework: null`, `buildCommand: null`, `installCommand: null`,
+`outputDirectory: "."`. Flow:
+
+```
+push → GitHub checks (Node.js CI ×3 node versions) + Vercel preview
+merge to main → Vercel production
+```
+
+Two things to know about the deployed app:
+
+* **`sw.js` must not be cached** — `vercel.json` sets `no-cache, no-store` on it
+  and the service worker itself goes network-first for `js`/`css`/`html`. That is
+  how a deploy reaches phones: bump `CACHE` in `sw.js` whenever the asset list
+  changes, and clients drop the old shell on their next online load.
+* **Vercel's Deployment Protection breaks a PWA.** With *Vercel Authentication*
+  enabled for all environments, every URL (including production) answers
+  "Protected Deployment — log in to Vercel", so an iPhone installed from the home
+  screen shows a login wall and the service worker precaches the login page
+  instead of the app. Set Project → Settings → Deployment Protection → Vercel
+  Authentication to **On (Preview Deployments Only)** or disable it.
+
+`test/` is listed in `.vercelignore`, so the suite never ships.
+
 ## Notes
 
 * WebGL2 is used when available; `FUJI.createEngine()` falls back to
