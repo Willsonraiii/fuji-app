@@ -57,6 +57,7 @@
 
   App.ui.activeTool = null;
   App.ui.openTool = function(id, btn){
+    if(App.exitWBPick) App.exitWBPick();
     document.querySelectorAll('#bottom-bar .tool').forEach(x=>x.classList.remove('active'));
     if(btn) btn.classList.add('active');
     App.ui.activeTool=id;
@@ -223,6 +224,12 @@
     el.appendChild(group('White balance'));
     el.appendChild(sliderRow({label:'Temperature',min:-1,max:1,step:0.01,value:c.temperature,path:'color.temperature',icon:'☀'}));
     el.appendChild(sliderRow({label:'Tint',min:-1,max:1,step:0.01,value:c.tint,path:'color.tint',icon:'♣'}));
+    const wbBar=document.createElement('div'); wbBar.className='confirm-bar wb-bar';
+    wbBar.innerHTML=`<button class="btn-ghost" id="wb-auto">✨ Auto WB</button>
+      <button class="btn-ghost" id="wb-pick">⌖ Pick from photo</button>`;
+    wbBar.querySelector('#wb-auto').addEventListener('click', ()=>{ if(App.onAutoWB)App.onAutoWB(); });
+    wbBar.querySelector('#wb-pick').addEventListener('click', ()=>{ if(App.onWBPick)App.onWBPick(); });
+    el.appendChild(wbBar);
     el.appendChild(divider());
     el.appendChild(group('Color'));
     el.appendChild(sliderRow({label:'Vibrance',min:-1,max:1,step:0.01,value:c.vibrance,path:'color.vibrance',icon:'◒'}));
@@ -336,7 +343,9 @@
     body.appendChild(search);
     // category chips
     const chips=document.createElement('div'); chips.className='recipe-chips';
-    const cats = global.FUJI.fujiRecipes.categories();
+    const cats = ['all','favorites'].concat(
+      global.FUJI.fujiRecipes.categories().filter(c=>c!=='all')
+    );
     cats.forEach(c=>{
       const b=document.createElement('button');
       b.className='recipe-chip'+(App.ui._recipeFilter.category===c?' active':'');
@@ -389,8 +398,9 @@
     let recs = global.FUJI.recipes.allRecipes();
     // apply filters
     recs = recs.filter(r => {
+      if(f.category === 'favorites' && !(r.builtin ? global.FUJI.recipes.isFav(r.id) : !!r.favorite)) return false;
       if(r.builtin){
-        if(f.category !== 'all' && (r.fuji?.category||'general') !== f.category) return false;
+        if(f.category !== 'all' && f.category !== 'favorites' && (r.fuji?.category||'general') !== f.category) return false;
         if(f.q){
           const q=f.q.toLowerCase();
           const blob = [
@@ -415,13 +425,19 @@
       const sub = r.builtin
         ? `<span class="fuji-tag">FUJI</span> ${r.fuji?r.fuji.filmSim:'Recipe'}${r.fuji&&r.fuji.source?' · '+escapeHtml(r.fuji.source):''}${cat?' · '+cat:''}`
         : (prof?prof.name:'Custom')+' · '+Math.round(r.intensity*100)+'%';
+      const isFav = r.builtin ? global.FUJI.recipes.isFav(r.id) : !!r.favorite;
       card.innerHTML=`
         <div class="rc-thumb" style="background:${prof?prof.swatch:'#333'}"></div>
         <div class="rc-info"><div class="rc-name">${escapeHtml(r.name)}</div>
           <div class="rc-sub">${sub}</div></div>
-        <button class="rc-fav ${r.favorite?'active':''}" title="Favorite">${r.favorite?'♥':'♡'}</button>
+        <button class="rc-fav ${isFav?'active':''}" title="Favorite">${isFav?'♥':'♡'}</button>
         <button class="rc-apply" title="Apply">${icon('check')}</button>`;
-      card.querySelector('.rc-fav').addEventListener('click', (e)=>{ e.stopPropagation(); if(r.builtin) return; global.FUJI.recipes.toggleFavorite(r.id); App.state&&App.state.emitRecipes(); if(App.ui.renderRecipeList)App.ui.renderRecipeList(); });
+      card.querySelector('.rc-fav').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(r.builtin) global.FUJI.recipes.toggleFav(r.id);
+        else global.FUJI.recipes.toggleFavorite(r.id);
+        App.state&&App.state.emitRecipes(); if(App.ui.renderRecipeList)App.ui.renderRecipeList();
+      });
       card.querySelector('.rc-apply').addEventListener('click', (e)=>{ e.stopPropagation(); App.onRecipeApply&&App.onRecipeApply(r.id); });
       card.addEventListener('click', ()=> App.ui.showRecipeDetail && App.ui.showRecipeDetail(r));
       card.addEventListener('contextmenu',(e)=>{ e.preventDefault(); App.ui.recipeMenu(r.id); });

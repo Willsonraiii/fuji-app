@@ -85,6 +85,21 @@
   /* ---------------- state → render wiring ---------------- */
   App.state.onChange(scheduleRender);
   App.state.onRecipes(()=>{ App.ui.renderRecipeList(); });
+
+  /* ---------------- auto-save session (resume last edit) ---------------- */
+  let saveTimer = 0;
+  function scheduleAutosave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(()=>{ App.saveSessionNow(); }, 700);
+  }
+  App.saveSessionNow = function(){
+    if(!photo) return;
+    FUJI.session.saveSession(photo, App.state.cur).then(()=>{});
+  };
+  App.state.onChange(scheduleAutosave);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='hidden'){ clearTimeout(saveTimer); App.saveSessionNow(); }
+  });
   App.resetTools = function(){
     const prev=FUJI.deepClone(App.state.cur);
     const id=App.state.cur.profileId;
@@ -100,6 +115,98 @@
   App.onPresetPick = function(id){
     App.state.applyProfile(id);
     App.updateHistoryFlags();
+  };
+
+  /* ---------------- white balance: auto + eyedropper picker ---------------- */
+  function clampNum(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+  function wbFromSample(avg){
+    // Neutralize sampled RGB. Map to temp/tint (and residual exposure)
+    // using the same WB model as the engine:
+    //   log r gain = t*ln1.18 + n*ln1.05
+    //   log g gain = -n*ln1.09
+    //   log b gain = -t*ln1.18 + n*ln1.05
+    // We solve for temp t, tint n (plus residual exposure e) so the sampled
+    // neutral pixel becomes balanced.
+    const {r,g,b} = avg;
+    if(!(r>0) || !(g>0) || !(b>0)) return null;
+    const kT = Math.log(1.18), kN = Math.log(1.05), kN2 = Math.log(1.09);
+    const lr = Math.log(r), lg = Math.log(g), lb = Math.log(b);
+    const temp = (lb - lr) / (2*kT);
+    const tint = (2*lg - lr - lb) / (2*(kN + kN2));
+    const e = (-lg + tint*kN2) / Math.LN2; // residual exposure in stops
+    return {
+      temp: clampNum(temp, -1, 1),
+      tint: clampNum(tint, -0.7, 0.7),
+      exp: e
+    };
+  }
+
+  App.applyWBSample = function(avg, msg){
+    const wb = wbFromSample(avg);
+    if(!wb){ App.toast('Could not read color — try again'); return; }
+    const prev = FUJI.deepClone(App.state.cur);
+    App.state.cur.color.temperature = wb.temp;
+    App.state.cur.color.tint = wb.tint;
+    App.state.cur.light.exposure = clampNum((App.state.cur.light.exposure||0) + clampNum(wb.exp, -0.4, 0.4), -2, 2);
+    App.state.commit(prev);
+    App.renderFull();
+    App.updateHistoryFlags();
+    App.toast(msg || 'White balance set from photo');
+  };
+
+  /* sample a patch around a fractional photo position (0..1) */
+  App.samplePhoto = function(fx, fy){
+    const src = App.sourceCanvas();
+    if(!src) return null;
+    try{
+      const px = Math.round(fx * src.width);
+      const py = Math.round(fy * src.height);
+      const R = Math.max(4, Math.round(Math.min(src.width, src.height) * 0.012));
+      const x0 = Math.max(0, px - R), y0 = Math.max(0, py - R);
+      const w = Math.min(src.width - x0, R*2), h = Math.min(src.height - y0, R*2);
+      const d = src.getContext('2d').getImageData(x0, y0, Math.max(1, w), Math.max(1, h)).data;
+      let r=0, g=0, b=0, n=0;
+      for(let i=0; i<d.length; i+=4){
+        const rr=d[i], gg=d[i+1], bb=d[i+2];
+        const mx=Math.max(rr,gg,bb), mn=Math.min(rr,gg,bb);
+        if(mx < 12) continue;            // skip near-black
+        if(mx > 0 && (mx-mn)/mx > 0.35) continue; // skip strongly colored pixels
+        r+=rr; g+=gg; b+=bb; n++;
+      }
+      return n ? { r:r/n, g:g/n, b:b/n } : null;
+    }catch(e){ return null; }
+  };
+
+  App.onWBPick = function(){
+    if(!photo){ App.toast('Import a photo first'); return; }
+    App.ui.closeSheet(()=>{});
+    App.wbPickMode = true;
+    stage.classList.add('wb-pick');
+    App.toast('Tap a neutral / gray area on the photo');
+  };
+  App.exitWBPick = function(){
+    if(App.wbPickMode){ App.wbPickMode = false; stage.classList.remove('wb-pick'); }
+  };
+
+  App.onAutoWB = function(){
+    const src = App.sourceCanvas();
+    if(!src){ App.toast('Import a photo first'); return; }
+    try{
+      const c = document.createElement('canvas');
+      c.width = 96; c.height = 96;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(src, 0, 0, 96, 96);
+      const d = ctx.getImageData(0, 0, 96, 96).data;
+      let r=0, g=0, b=0, n=0;
+      for(let i=0; i<d.length; i+=4){
+        const mx = Math.max(d[i], d[i+1], d[i+2]);
+        if(mx < 12) continue;
+        r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++;
+      }
+      if(!n){ App.toast('Could not read photo'); return; }
+      App.applyWBSample({ r:r/n, g:g/n, b:b/n }, 'Auto white balance applied');
+    }catch(e){ App.toast('Auto WB failed'); }
   };
 
   /* ---------------- source canvas ---------------- */
@@ -124,7 +231,7 @@
     img.src = url;
   }
   async function attachPhoto(canvas, name, type, file){
-    photo = { canvas, w:canvas.width, h:canvas.height, name:name||'photo.jpg', type:type||'image/jpeg' };
+    photo = { canvas, w:canvas.width, h:canvas.height, name:name||'photo.jpg', type:type||'image/jpeg', token:Date.now() };
     if(!engine){
       engine = FUJI.createEngine(viewCanvas);
       if(!engine){ App.toast('WebGL not available on this device'); return; }
@@ -136,6 +243,17 @@
     App.state.reset();
     App.layoutStage();
     App.toast('Photo ready');
+    // restore a saved session (resume last edit) if one was waiting
+    if(App._pendingState){
+      const st = App._pendingState; App._pendingState = null;
+      App.state.cur = FUJI.deepClone(st);
+      App.state.emit();
+      App.renderFull();
+      App.updateHistoryFlags();
+      App.toast('Session restored');
+    }
+    scheduleAutosave();
+    const rc = $('#resume-card'); if(rc) rc.classList.add('hidden');
     // Analyze context (EXIF + scene) — fully on-device
     let exif = null;
     if(file){ try { exif = await FUJI.context.readEXIF(file); } catch(e){ exif=null; } }
@@ -185,6 +303,17 @@
 
   function stagePoint(e){ const r=stage.getBoundingClientRect(); return { x:(e.clientX-r.left), y:(e.clientY-r.top) }; }
   function startStagePointer(e){
+    if(App.wbPickMode){
+      const p=stagePoint(e);
+      const fx=(p.x-fit.x)/fit.w, fy=(p.y-fit.y)/fit.h;
+      if(fx<0||fx>1||fy<0||fy>1){ App.toast('Tap on the photo'); return; }
+      const avg = App.samplePhoto(fx, fy);
+      if(!avg){ App.toast('Tap a gray / neutral area'); return; }
+      App.exitWBPick();
+      App.applyWBSample(avg);
+      App.ui.openTool('color');
+      return;
+    }
     if(App.ui.baMode==='off'){
       if(App.ui.activeTool==='crop' || cropActive()) { App.ui.cropStart(e); return; }
       holding=true;
@@ -332,6 +461,7 @@
     App.state.commit(prev);   // undoable crop
     App.layoutStage();
     App.toast('Cropped');
+    scheduleAutosave();
   };
   App.onCropReset=function(){ $('#crop-overlay').classList.add('hidden'); cropState=null; };
 
@@ -385,6 +515,7 @@
           } else {
             saveBlob(blob,file.name);
           }
+          App.saveSessionNow();
         }, mime, q);
       }catch(err){ App.hideSpinner(); App.toast('Export error: '+err.message); }
     }, 30);
@@ -441,6 +572,35 @@
     saveBlob(blob,name);
   };
 
+  /* ---------------- resume last edit ---------------- */
+  function fmtAge(ts){
+    const m = Math.max(1, Math.round((Date.now()-ts)/60000));
+    if(m < 60) return m + ' min ago';
+    const h = Math.round(m/60);
+    if(h < 24) return h + ' hr ago';
+    return Math.round(h/24) + ' d ago';
+  }
+  async function refreshResumeCard(){
+    const card = $('#resume-card');
+    if(!card) return;
+    let s = null;
+    try{ s = await FUJI.session.loadSession(); }catch(e){ s = null; }
+    if(!s){ card.classList.add('hidden'); return; }
+    $('#resume-name').textContent = s.name || 'photo.jpg';
+    $('#resume-when').textContent = fmtAge(s.savedAt || Date.now());
+    card.classList.remove('hidden');
+  }
+  App.resumeSession = async function(){
+    const s = await FUJI.session.loadSession();
+    if(!s){ App.toast('No saved session'); return; }
+    try{
+      const file = new File([s.photo], s.name || 'photo.jpg', { type: s.type || 'image/jpeg' });
+      const url = URL.createObjectURL(file);
+      App._pendingState = s.state;
+      loadFromURL(url, s.name || 'photo.jpg', s.type || 'image/jpeg', file);
+    }catch(e){ App.toast('Could not restore session'); }
+  };
+
   /* ---------------- boot ---------------- */
   function boot(){
     App.ui.buildToolbar();
@@ -450,6 +610,15 @@
     App.state.emit();
     window.addEventListener('resize', ()=>{ App.layoutStage(); });
     registerSW();
+    // resume card
+    const rBtn = $('#btn-resume'), dBtn = $('#btn-discard');
+    if(rBtn) rBtn.addEventListener('click', ()=>App.resumeSession());
+    if(dBtn) dBtn.addEventListener('click', async ()=>{
+      await FUJI.session.clearSession();
+      const card = $('#resume-card'); if(card) card.classList.add('hidden');
+      App.toast('Session discarded');
+    });
+    refreshResumeCard();
 
     /* Prevent pull-to-refresh on iOS while letting sheets scroll normally */
     document.addEventListener('touchmove', e=>{

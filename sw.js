@@ -1,7 +1,7 @@
 /* F-UJI service worker — offline app shell
    Network-first for HTML/JS/CSS (fresh updates when online, cached when offline),
    cache-first for static assets (icons/manifest). */
-const CACHE = 'fuji-v2';
+const CACHE = 'fuji-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS = [
   './js/processing.js',
   './js/profiles.js',
   './js/state.js',
+  './js/session.js',
   './js/recipes.js',
   './js/ui.js',
   './js/main.js',

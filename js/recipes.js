@@ -6,13 +6,36 @@
   const { deepClone } = global.FUJI;
 
   const STORE_KEY = "fuji.recipes.v1";
+  const FAV_KEY = "fuji.favorites.v1";
   let recipes = [];
+  let favs = [];
+
+  function loadFavs(){
+    try{
+      const raw = localStorage.getItem(FAV_KEY);
+      favs = raw ? JSON.parse(raw) : [];
+      if(!Array.isArray(favs)) favs = [];
+    }catch(e){ favs=[]; }
+    return favs;
+  }
+  function saveFavs(){
+    try{ localStorage.setItem(FAV_KEY, JSON.stringify(favs)); }catch(e){}
+  }
+  function isFav(id){ return favs.indexOf(id) >= 0; }
+  function toggleFav(id){
+    const i = favs.indexOf(id);
+    if(i >= 0) favs.splice(i, 1);
+    else favs.push(id);
+    saveFavs();
+    return i < 0;
+  }
 
   function load(){
     try{
       const raw = localStorage.getItem(STORE_KEY);
       recipes = raw ? JSON.parse(raw) : [];
     }catch(e){ recipes=[]; }
+    loadFavs();
     return recipes;
   }
   function save(){
@@ -164,6 +187,7 @@
     load, getRecipes, createRecipe, duplicateRecipe, deleteRecipe,
     toggleFavorite, renameRecipe, setIntensity, getRecipe, applyToState,
     exportJSON, importJSON, save,
-    builtinRecipes, allRecipes
+    builtinRecipes, allRecipes,
+    loadFavs, saveFavs, isFav, toggleFav
   };
 })(typeof window!=="undefined"?window:globalThis);
