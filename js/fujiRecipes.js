@@ -90,9 +90,21 @@
   /* ---- Film Simulation → Profile ID mapping (real sims) ---- */
   const SIM_MAP = {
     'provia': 'fuji-provia',
+    'provia-400x': 'fuji-provia-400x',
+    'provia-400x-xpro': 'fuji-provia-400x-xpro',
     'velvia': 'fuji-velvia',
     'velvia-vivid': 'fuji-velvia-vivid',
     'astia': 'fuji-astia',
+    'fortia-sp': 'fuji-fortia-sp',
+    'neopan-1600': 'fuji-neopan-1600',
+    't64': 'fuji-t64',
+    'pro-800z': 'fuji-pro-800z',
+    'pro-400h': 'fuji-pro-400h',
+    'pro-160c': 'fuji-pro-160c',
+    'pro-160s': 'fuji-pro-160s',
+    'superia-1600': 'fuji-superia-1600',
+    'superia-400': 'fuji-superia-400',
+    'superia-100': 'fuji-superia-100',
     'classic-chrome': 'fuji-classic-chrome',
     'classic-negative': 'fuji-classic-neg',
     'nostalgic-neg': 'fuji-nostalgic-neg',
@@ -687,6 +699,207 @@
         highlight: 2, shadow: 2, color: 0, sharpness: 2, highISONR: -3,
         grainEffect: 'weak', grainSize: 'small',
         colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 2
+      }
+    },
+
+    /* ============== CLASSIC FUJI FILM PRESET LINE ==============
+       Full looks inspired by iconic Fujifilm film stocks (source:
+       VSCO's Fujifilm preset collection — film characteristics).
+       Each preset = film simulation + camera-style settings. */
+
+    /* --- FA1 — Fuji Astia 100F --- */
+    {
+      id: 'astia100f', name: 'Astia 100F', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Gentle true-to-life colors, superb skin tones', filmSim: 'Astia 100F', camera: 'Any',
+      category: 'film', scene: ['portrait','wedding','indoor'],
+      fuji: {
+        simulation: 'astia', dynamicRange: 100,
+        whiteBalance: 'Daylight', wbShiftR: 0, wbShiftB: 0,
+        highlight: -1, shadow: 1, color: 1, sharpness: -1, highISONR: -2,
+        grainEffect: 'off', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: -1
+      }
+    },
+
+    /* --- FF5 — Fuji Fortia SP --- */
+    {
+      id: 'fortiaSP', name: 'Fortia SP', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Ultra-vivid saturation, bold greens, strong contrast', filmSim: 'Fortia SP', camera: 'Any',
+      category: 'film', scene: ['landscape','nature','travel'],
+      fuji: {
+        simulation: 'fortia-sp', dynamicRange: 100,
+        whiteBalance: 'Daylight', wbShiftR: 1, wbShiftB: -2,
+        highlight: -1, shadow: -1, color: 3, sharpness: 0, highISONR: -2,
+        grainEffect: 'off', grainSize: 'small',
+        colorChromeEffect: 'strong', colorChromeFxBlue: 'off', clarity: 2
+      }
+    },
+
+    /* --- FN16 — Fuji Neopan 1600 --- */
+    {
+      id: 'neopan1600', name: 'Neopan 1600', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Bold high-contrast gritty monochrome', filmSim: 'Neopan 1600', camera: 'Any',
+      category: 'film', scene: ['street','night','documentary'],
+      fuji: {
+        simulation: 'neopan-1600', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 0, wbShiftB: 0,
+        highlight: 2, shadow: 3, color: 0, sharpness: 2, highISONR: -4,
+        grainEffect: 'strong', grainSize: 'large',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 2
+      }
+    },
+
+    /* --- FV5 — Fuji Velvia 50 --- */
+    {
+      id: 'velvia50', name: 'Velvia 50', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Ultra-high saturation, magenta cast, warm tones', filmSim: 'Velvia 50', camera: 'Any',
+      category: 'film', scene: ['landscape','nature','travel'],
+      fuji: {
+        simulation: 'velvia', dynamicRange: 100,
+        whiteBalance: 'Daylight', wbShiftR: 2, wbShiftB: -2,
+        highlight: -1, shadow: -2, color: 2, sharpness: -1, highISONR: -2,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'strong', colorChromeFxBlue: 'off', clarity: 3
+      }
+    },
+
+    /* --- FT6 — Fuji T64 --- */
+    {
+      id: 't64', name: 'T64', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Cool tungsten-balanced chrome, blue auras', filmSim: 'T64', camera: 'Any',
+      category: 'film', scene: ['night','architecture','indoor'],
+      fuji: {
+        simulation: 't64', dynamicRange: 100,
+        whiteBalance: 'Tungsten', wbShiftR: -1, wbShiftB: 3,
+        highlight: 0, shadow: 1, color: 1, sharpness: 0, highISONR: -2,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 0
+      }
+    },
+
+    /* --- FP8 — Fuji Pro 800Z --- */
+    {
+      id: 'pro800z', name: 'Pro 800Z', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Rich saturation and contrast for dim light, reds pop', filmSim: 'Pro 800Z', camera: 'Any',
+      category: 'film', scene: ['night','indoor','street'],
+      fuji: {
+        simulation: 'pro-800z', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 3, wbShiftB: -2,
+        highlight: -1, shadow: 1, color: 2, sharpness: 0, highISONR: -2,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'weak', colorChromeFxBlue: 'off', clarity: 1
+      }
+    },
+
+    /* --- FP4 — Fuji Pro 400H --- */
+    {
+      id: 'pro400h', name: 'Pro 400H', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Fresh look, slight green cast, wide latitude', filmSim: 'Pro 400H', camera: 'Any',
+      category: 'film', scene: ['portrait','indoor','landscape'],
+      fuji: {
+        simulation: 'pro-400h', dynamicRange: 400,
+        whiteBalance: 'Auto', wbShiftR: -2, wbShiftB: 1,
+        highlight: 0, shadow: 1, color: 2, sharpness: -1, highISONR: -2,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'weak', clarity: 0
+      }
+    },
+
+    /* --- FP2 — Fuji Pro 160C --- */
+    {
+      id: 'pro160c', name: 'Pro 160C', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Rich colors, crisp contrast, deeper saturation', filmSim: 'Pro 160C', camera: 'Any',
+      category: 'film', scene: ['portrait','fashion','landscape'],
+      fuji: {
+        simulation: 'pro-160c', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 2, wbShiftB: -2,
+        highlight: -1, shadow: 1, color: 2, sharpness: 1, highISONR: -2,
+        grainEffect: 'off', grainSize: 'small',
+        colorChromeEffect: 'weak', colorChromeFxBlue: 'off', clarity: 1
+      }
+    },
+
+    /* --- FP1 — Fuji Pro 160S --- */
+    {
+      id: 'pro160s', name: 'Pro 160S', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Soft natural color, low contrast, elegant', filmSim: 'Pro 160S', camera: 'Any',
+      category: 'film', scene: ['portrait','wedding','fashion'],
+      fuji: {
+        simulation: 'pro-160s', dynamicRange: 400,
+        whiteBalance: 'Auto', wbShiftR: 1, wbShiftB: -1,
+        highlight: -2, shadow: 2, color: 1, sharpness: -1, highISONR: -2,
+        grainEffect: 'off', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: -1
+      }
+    },
+
+    /* --- FR4 — Fuji Provia 400X --- */
+    {
+      id: 'provia400x', name: 'Provia 400X', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Deep natural colors with moderate contrast', filmSim: 'Provia 400X', camera: 'Any',
+      category: 'film', scene: ['landscape','travel','editorial'],
+      fuji: {
+        simulation: 'provia-400x', dynamicRange: 200,
+        whiteBalance: 'Daylight', wbShiftR: 0, wbShiftB: 0,
+        highlight: 0, shadow: 0, color: 2, sharpness: 0, highISONR: -2,
+        grainEffect: 'off', grainSize: 'small',
+        colorChromeEffect: 'weak', colorChromeFxBlue: 'off', clarity: 1
+      }
+    },
+
+    /* --- FR4X — Fuji Provia 400X Cross Processed --- */
+    {
+      id: 'provia400x_xpro', name: 'Provia 400X X-Pro', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Cross-processed: bold contrast, yellow hues, vintage', filmSim: 'Provia 400X X-Pro', camera: 'Any',
+      category: 'film', scene: ['golden','street','travel'],
+      fuji: {
+        simulation: 'provia-400x-xpro', dynamicRange: 100,
+        whiteBalance: 'Auto', wbShiftR: 2, wbShiftB: -4,
+        highlight: 2, shadow: -1, color: 4, sharpness: 1, highISONR: -2,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'strong', colorChromeFxBlue: 'off', clarity: 2
+      }
+    },
+
+    /* --- FS16 — Fuji Superia 1600 --- */
+    {
+      id: 'superia1600', name: 'Superia 1600', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Low contrast natural colors with a greenish fade', filmSim: 'Superia 1600', camera: 'Any',
+      category: 'film', scene: ['street','travel','indoor'],
+      fuji: {
+        simulation: 'superia-1600', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 1, wbShiftB: -1,
+        highlight: -1, shadow: 2, color: 1, sharpness: -1, highISONR: -4,
+        grainEffect: 'strong', grainSize: 'large',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 0
+      }
+    },
+
+    /* --- FS4 — Fuji Superia 400 --- */
+    {
+      id: 'superia400', name: 'Superia 400', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'All-purpose natural color with green and pink cast', filmSim: 'Superia 400', camera: 'Any',
+      category: 'film', scene: ['travel','street','daylight'],
+      fuji: {
+        simulation: 'superia-400', dynamicRange: 200,
+        whiteBalance: 'Auto', wbShiftR: 1, wbShiftB: -1,
+        highlight: -1, shadow: 1, color: 1, sharpness: 0, highISONR: -2,
+        grainEffect: 'weak', grainSize: 'small',
+        colorChromeEffect: 'off', colorChromeFxBlue: 'off', clarity: 0
+      }
+    },
+
+    /* --- FS1 — Fuji Superia 100 --- */
+    {
+      id: 'superia100', name: 'Superia 100', source: 'Film Preset Line', author: 'F-UJI',
+      tagline: 'Daylight balanced: cool shadows, warm highlights', filmSim: 'Superia 100', camera: 'Any',
+      category: 'film', scene: ['portrait','landscape','daylight'],
+      fuji: {
+        simulation: 'superia-100', dynamicRange: 100,
+        whiteBalance: 'Daylight', wbShiftR: 0, wbShiftB: -1,
+        highlight: -1, shadow: 0, color: 1, sharpness: 0, highISONR: -2,
+        grainEffect: 'off', grainSize: 'small',
+        colorChromeEffect: 'weak', colorChromeFxBlue: 'off', clarity: 0
       }
     }
   ];

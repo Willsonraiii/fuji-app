@@ -55,17 +55,17 @@
     }
   });
 
-  /* Velvia — vivid saturated landscape chrome */
+  /* Velvia 50 — vivid saturated landscape chrome (magenta cast, warm) */
   def({
-    id:"fuji-velvia", name:"Velvia", sim:true, fujiSim:"velvia",
-    type:"Simulation", tagline:"Vivid saturated slide film",
+    id:"fuji-velvia", name:"Velvia 50", sim:true, fujiSim:"velvia",
+    type:"Simulation", tagline:"Vivid magenta-rich landscape chrome",
     swatch:"#c4453a",
     engine:{
-      matrix: mul( S(1.28), mul( hueRot(-6), DIAG(1.03,1.02,1.05) ) ),
+      matrix: mul( S(1.42), mul( hueRot(4), DIAG(1.06,1.0,1.04) ) ),
       channelCurves: [ STRONG_S, STRONG_S, STRONG_S ],
-      lumaCurve: STRONG_S, saturation:1.28, exposure:-0.02,
-      grainAmt:0.45, grainSize:0.55, halation:0.04, bloom:0.01, vignette:0.18,
-      split:{ sh:0.58, ss:0.12, hh:0.08, hs:0.08 }, vibrance:0.20
+      lumaCurve: STRONG_S, saturation:1.42, exposure:-0.02,
+      grainAmt:0.45, grainSize:0.55, halation:0.04, bloom:0.01, vignette:0.20,
+      split:{ sh:0.6, ss:0.14, hh:0.06, hs:0.14 }, vibrance:0.28
     }
   });
 
@@ -83,10 +83,178 @@
     }
   });
 
-  /* Astia — soft pastel portrait slide */
+  /* Fortia SP — rare ultra-saturated look, bold greens, strong contrast */
   def({
-    id:"fuji-astia", name:"Astia", sim:true, fujiSim:"astia",
-    type:"Simulation", tagline:"Soft portrait transparency",
+    id:"fuji-fortia-sp", name:"Fortia SP", sim:true, fujiSim:"fortia-sp",
+    type:"Simulation", tagline:"Ultra-vivid greens, strong contrast",
+    swatch:"#4f9e4f",
+    engine:{
+      matrix: mul( S(1.5), mul( hueRot(2), DIAG(1.02,1.07,0.97) ) ),
+      channelCurves: [ STRONG_S, STRONG_S, STRONG_S ],
+      lumaCurve: STRONG_S, saturation:1.5, exposure:-0.02,
+      grainAmt:0.4, grainSize:0.5, halation:0.03, bloom:0.01, vignette:0.22,
+      split:{ sh:0.55, ss:0.14, hh:0.08, hs:0.12 }, vibrance:0.30
+    }
+  });
+
+  /* Neopan 1600 — gritty high-contrast black & white */
+  def({
+    id:"fuji-neopan-1600", name:"Neopan 1600", sim:true, fujiSim:"neopan-1600", bw:true,
+    type:"Simulation", tagline:"Gritty high-contrast monochrome",
+    swatch:"#6b6b6b",
+    engine:{
+      matrix: S(0.0),
+      channelCurves: [ HARD_NIC, HARD_NIC, HARD_NIC ],
+      lumaCurve: HARD_NIC, saturation:0.0, exposure:0.0,
+      grainAmt:1.0, grainSize:0.7, halation:0.0, bloom:0.0, vignette:0.22,
+      split:{ sh:0.5, ss:0.03, hh:0.5, hs:0.02 }, vibrance:0
+    }
+  });
+
+  /* T64 — tungsten-balanced chrome, cool blue cast */
+  def({
+    id:"fuji-t64", name:"T64", sim:true, fujiSim:"t64",
+    type:"Simulation", tagline:"Tungsten-balanced cool chrome",
+    swatch:"#4a7b9e",
+    engine:{
+      matrix: mul( S(0.95), mul( hueRot(-4), DIAG(0.97,1.0,1.09) ) ),
+      channelCurves: [ FLAT, FLAT, FLAT ],
+      lumaCurve: FLAT, saturation:0.95, exposure:0.02,
+      grainAmt:0.5, grainSize:0.5, halation:0.06, bloom:0.02, vignette:0.14,
+      split:{ sh:0.12, ss:0.16, hh:0.06, hs:0.10 }, vibrance:-0.05
+    }
+  });
+
+  /* Pro 800Z — fast, dim-light negative, rich reds */
+  def({
+    id:"fuji-pro-800z", name:"Pro 800Z", sim:true, fujiSim:"pro-800z",
+    type:"Simulation", tagline:"Rich saturated fast negative",
+    swatch:"#c94f3d",
+    engine:{
+      matrix: mul( S(1.25), mul( hueRot(-2), DIAG(1.09,1.0,0.94) ) ),
+      channelCurves: [ STRONG_S, STRONG_S, STRONG_S ],
+      lumaCurve: STRONG_S, saturation:1.25, exposure:-0.01,
+      grainAmt:0.55, grainSize:0.55, halation:0.10, bloom:0.03, vignette:0.18,
+      split:{ sh:0.32, ss:0.12, hh:0.05, hs:0.12 }, vibrance:0.20
+    }
+  });
+
+  /* Pro 400H — green-cast, soft wide-latitude negative */
+  def({
+    id:"fuji-pro-400h", name:"Pro 400H", sim:true, fujiSim:"pro-400h",
+    type:"Simulation", tagline:"Fresh green-cast soft negative",
+    swatch:"#7da67e",
+    engine:{
+      matrix: mul( S(0.95), mul( hueRot(2), DIAG(1.0,1.07,0.97) ) ),
+      channelCurves: [ FLAT, FLAT, FLAT ],
+      lumaCurve: FLAT, saturation:0.95, exposure:0.05,
+      grainAmt:0.45, grainSize:0.5, halation:0.08, bloom:0.03, vignette:0.12,
+      split:{ sh:0.5, ss:0.05, hh:0.06, hs:0.04 }, vibrance:0.04
+    }
+  });
+
+  /* Pro 160C — rich colors, stronger contrast */
+  def({
+    id:"fuji-pro-160c", name:"Pro 160C", sim:true, fujiSim:"pro-160c",
+    type:"Simulation", tagline:"Rich crisp professional negative",
+    swatch:"#c78a5a",
+    engine:{
+      matrix: mul( S(1.15), mul( hueRot(-1), DIAG(1.06,1.02,0.96) ) ),
+      channelCurves: [ STRONG_S, SOFT_S, SOFT_S ],
+      lumaCurve: STRONG_S, saturation:1.15, exposure:0.01,
+      grainAmt:0.35, grainSize:0.5, halation:0.08, bloom:0.02, vignette:0.14,
+      split:{ sh:0.4, ss:0.10, hh:0.06, hs:0.08 }, vibrance:0.12
+    }
+  });
+
+  /* Pro 160S — soft natural, low contrast, wedding/portrait */
+  def({
+    id:"fuji-pro-160s", name:"Pro 160S", sim:true, fujiSim:"pro-160s",
+    type:"Simulation", tagline:"Soft natural low-contrast portrait",
+    swatch:"#d3b094",
+    engine:{
+      matrix: mul( S(0.9), mul( hueRot(0), DIAG(1.03,1.0,0.99) ) ),
+      channelCurves: [ FLAT, FLAT, FLAT ],
+      lumaCurve: FLAT, saturation:0.9, exposure:0.05,
+      grainAmt:0.3, grainSize:0.5, halation:0.06, bloom:0.03, vignette:0.12,
+      split:{ sh:0.1, ss:0.05, hh:0.5, hs:0.04 }, vibrance:0.08
+    }
+  });
+
+  /* Provia 400X — deep natural colors, moderate contrast */
+  def({
+    id:"fuji-provia-400x", name:"Provia 400X", sim:true, fujiSim:"provia-400x",
+    type:"Simulation", tagline:"Deep natural moderate-contrast slide",
+    swatch:"#5a9a83",
+    engine:{
+      matrix: mul( S(1.12), mul( hueRot(0), DIAG(1.01,1.0,1.0) ) ),
+      channelCurves: [ SOFT_S, SOFT_S, SOFT_S ],
+      lumaCurve: SOFT_S, saturation:1.12, exposure:0.0,
+      grainAmt:0.5, grainSize:0.5, halation:0.05, bloom:0.01, vignette:0.12,
+      split:{ sh:0.5, ss:0.06, hh:0.45, hs:0.05 }, vibrance:0.08
+    }
+  });
+
+  /* Provia 400X X-Pro — cross-processed: bold contrast, yellow hues */
+  def({
+    id:"fuji-provia-400x-xpro", name:"Provia 400X X-Pro", sim:true, fujiSim:"provia-400x-xpro",
+    type:"Simulation", tagline:"Cross-processed bold yellow cast",
+    swatch:"#c9b04a",
+    engine:{
+      matrix: mul( S(1.3), mul( hueRot(6), DIAG(1.07,1.03,0.89) ) ),
+      channelCurves: [ STRONG_S, STRONG_S, STRONG_S ],
+      lumaCurve: STRONG_S, saturation:1.3, exposure:0.02,
+      grainAmt:0.6, grainSize:0.55, halation:0.06, bloom:0.02, vignette:0.18,
+      split:{ sh:0.15, ss:0.20, hh:0.05, hs:0.16 }, vibrance:0.20
+    }
+  });
+
+  /* Superia 1600 — low contrast, natural colors, greenish fade */
+  def({
+    id:"fuji-superia-1600", name:"Superia 1600", sim:true, fujiSim:"superia-1600",
+    type:"Simulation", tagline:"Soft greenish-fade high-speed negative",
+    swatch:"#9aa86a",
+    engine:{
+      matrix: mul( S(0.88), mul( hueRot(2), DIAG(1.0,1.05,0.96) ) ),
+      channelCurves: [ LIFTED, LIFTED, LIFTED ],
+      lumaCurve: LIFTED, saturation:0.88, exposure:0.06,
+      grainAmt:0.85, grainSize:0.65, halation:0.08, bloom:0.03, vignette:0.14,
+      split:{ sh:0.5, ss:0.10, hh:0.05, hs:0.05 }, vibrance:-0.03
+    }
+  });
+
+  /* Superia 400 — natural color, medium contrast, green + pink cast */
+  def({
+    id:"fuji-superia-400", name:"Superia 400", sim:true, fujiSim:"superia-400",
+    type:"Simulation", tagline:"All-purpose green-pink consumer negative",
+    swatch:"#b58a8a",
+    engine:{
+      matrix: mul( S(1.02), mul( hueRot(3), DIAG(1.07,1.03,0.96) ) ),
+      channelCurves: [ SOFT_S, SOFT_S, SOFT_S ],
+      lumaCurve: SOFT_S, saturation:1.02, exposure:0.02,
+      grainAmt:0.5, grainSize:0.5, halation:0.07, bloom:0.02, vignette:0.14,
+      split:{ sh:0.4, ss:0.08, hh:0.06, hs:0.08 }, vibrance:0.06
+    }
+  });
+
+  /* Superia 100 — daylight balanced, cool shadows, warm highlights */
+  def({
+    id:"fuji-superia-100", name:"Superia 100", sim:true, fujiSim:"superia-100",
+    type:"Simulation", tagline:"Daylight vibrant, cool shadows warm highlights",
+    swatch:"#a8b57f",
+    engine:{
+      matrix: mul( S(1.1), mul( hueRot(0), DIAG(1.03,1.0,1.01) ) ),
+      channelCurves: [ SOFT_S, SOFT_S, SOFT_S ],
+      lumaCurve: SOFT_S, saturation:1.1, exposure:0.03,
+      grainAmt:0.4, grainSize:0.5, halation:0.05, bloom:0.02, vignette:0.13,
+      split:{ sh:0.12, ss:0.10, hh:0.05, hs:0.12 }, vibrance:0.10
+    }
+  });
+
+  /* Astia 100F — soft pastel portrait slide */
+  def({
+    id:"fuji-astia", name:"Astia 100F", sim:true, fujiSim:"astia",
+    type:"Simulation", tagline:"Gentle pastel portrait transparency",
     swatch:"#d99a7a",
     engine:{
       matrix: mul( S(0.94), mul( hueRot(1), DIAG(1.05,1.0,0.99) ) ),
