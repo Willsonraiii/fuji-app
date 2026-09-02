@@ -543,7 +543,7 @@
       FUJI.recipes.applyToState(r, App.state);
     }
     App.renderFull(); App.updateHistoryFlags();
-    App.ui.closeSheet(()=>{});
+    App.ui.closeAllSheets();
     App.toast('Applied '+r.name);
   };
   App.onRecipeExport=function(){
@@ -601,8 +601,28 @@
     }catch(e){ App.toast('Could not restore session'); }
   };
 
+  /* ---------------- theme (dark default + light toggle, persisted) ---------------- */
+  function applyTheme(theme){
+    document.documentElement.dataset.theme = theme;
+    try{
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if(meta) meta.setAttribute('content', theme === 'light' ? '#f4f2ee' : '#0b0b0d');
+    }catch(e){}
+  }
+  function initTheme(){
+    const btn = $('#theme-toggle');
+    if(!btn) return;
+    let current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+    btn.addEventListener('click', ()=>{
+      current = current === 'light' ? 'dark' : 'light';
+      applyTheme(current);
+      try{ localStorage.setItem('fuji.theme', current); }catch(e){}
+    });
+  }
+
   /* ---------------- boot ---------------- */
   function boot(){
+    initTheme();
     App.ui.buildToolbar();
     App.ui.updateSplit(50);
     App.updateHistoryFlags();
