@@ -1,0 +1,25 @@
+{
+  "name": "fuji-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "F-UJI — professional film colour for iPhone. Zero-dependency static PWA (WebGL2 + CPU fallback).",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node test/run.js",
+    "lint": "node test/run.js syntax",
+    "check": "node test/run.js assets syntax",
+    "start": "node test/serve.js",
+    "build": "node -e \"console.log('F-UJI ships as plain files — no build step. Vercel serves the repo root.')\""
+  },
+  "files": [
+    "index.html",
+    "css",
+    "js",
+    "icons",
+    "manifest.json",
+    "sw.js"
+  ]
+}

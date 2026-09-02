@@ -74,6 +74,9 @@
       this.commit(prev);
     }
     commit(prev){
+      // History must never hold a live reference to this.cur, or later edits
+      // mutate the snapshot too and undo silently does nothing.
+      if(prev === this.cur) prev = deepClone(prev);
       this.undoStack.push(prev);
       if(this.undoStack.length>this.maxHistory) this.undoStack.shift();
       this.redoStack.length=0;

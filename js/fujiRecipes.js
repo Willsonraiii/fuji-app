@@ -939,8 +939,27 @@
       (r.scene||[]).some(s => s.toLowerCase().includes(q))
     );
   }
+  /* Scene tags the pixel analyser (context.js) can emit but that no recipe is
+     literally tagged with. Without this, those photos show "no suggestions". */
+  const SCENE_ALIASES = {
+    'high-key': ['portrait', 'wedding', 'editorial'],
+    'forest': ['nature', 'landscape'],
+    'underexposed': ['night', 'street'],
+    'indoor-low-light': ['night', 'indoor']
+  };
+
+  function expandSceneTags(sceneTags){
+    const out = sceneTags.slice();
+    for(const t of sceneTags){
+      const al = SCENE_ALIASES[t];
+      if(al) for(const a of al) if(out.indexOf(a) < 0) out.push(a);
+    }
+    return out;
+  }
+
   function suggestFor(sceneTags){
     if(!sceneTags || !sceneTags.length) return convertedRecipes.slice();
+    sceneTags = expandSceneTags(sceneTags);
     const scores = convertedRecipes.map(r => {
       let s = 0;
       for(const t of sceneTags){
@@ -962,7 +981,8 @@
   function getFujiRecipe(id) { return convertedRecipes.find(r => r.id === id); }
 
   function applyFujiRecipe(recipe, State) {
-    const prev = State.cur;
+    // deep copy of the live state, taken BEFORE mutation, so undo can restore it
+    const prev = JSON.parse(JSON.stringify(State.cur));
     const s = recipe.state;
     State.cur.profileId = s.profileId;
     State.cur.film.intensity = 1.0;

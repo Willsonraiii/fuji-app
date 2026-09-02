@@ -9,10 +9,14 @@
   "use strict";
 
   /* -------- EXIF parser (JPEG / TIFF, segment walker) -------- */
+  /* JPEG APP1 layout, relative to `off` (the position of the 2-byte segment length):
+       off+0  length (includes these 2 bytes)
+       off+2  "Exif\0\0"
+       off+8  TIFF block (header, IFDs, value data)                       */
   function readEXIF(file){
     return new Promise((resolve) => {
       if(!file || !(file instanceof Blob)) return resolve(null);
-      const slice = file.slice ? file.slice(0, 256*1024) : file;
+      const slice = file.slice ? file.slice(0, 512*1024) : file;
       const r = new FileReader();
       r.onload = () => {
         try { resolve(parseEXIFBuffer(r.result)); }
@@ -24,110 +28,154 @@
   }
 
   function parseEXIFBuffer(buf){
+    if(!buf || buf.byteLength < 4) return null;
     const v = new DataView(buf);
-    if(buf.byteLength < 4) return null;
-    // JPEG SOI
-    if(v.getUint16(0) !== 0xFFD8) return null;
+    if(v.getUint16(0) !== 0xFFD8) return null;   // JPEG SOI
     let off = 2;
-    while(off < buf.byteLength){
-      if(v.getUint8(off) !== 0xFF) return null;
+    while(off + 4 <= buf.byteLength){
+      if(v.getUint8(off) !== 0xFF) return null;  // markers are 0xFF-prefixed
       const marker = v.getUint8(off+1);
       off += 2;
-      if(marker === 0xE1){  // APP1
-          const size = v.getUint16(off);
-          if(buf.slice(off+4, off+10) === 'Exif\0\0' || String.fromCharCode(...new Uint8Array(buf, off+4, 4)) === 'Exif'){
-            const tiff = buf.slice(off+10, off+size);
-            return parseTIFF(tiff);
-          }
-          off += size;
+      // Standalone markers (no length field): TEM, RSTn, SOI/EOI
+      if(marker === 0x01 || marker === 0xD8 || marker === 0xD9 || (marker >= 0xD0 && marker <= 0xD7)) continue;
+      const size = v.getUint16(off);
+      const end = off + size;                    // length counts itself, so this is the next marker
+      if(size < 2 || end > buf.byteLength) return null;
+      if(marker === 0xE1){                        // APP1 — may carry "Exif\0\0" + TIFF
+        const isExif = v.getUint8(off+2)===0x45 && v.getUint8(off+3)===0x78 &&
+                       v.getUint8(off+4)===0x69 && v.getUint8(off+5)===0x66;   // 'E','x','i','f'
+        if(isExif){
+          const parsed = parseTIFF(buf.slice(off+8, end));
+          if(parsed) return parsed;               // keep walking if this APP1 wasn't usable
         }
-      else if(marker === 0xDA){ return null; }  // SOS — image data, EXIF was earlier
-      else {
-        const size = v.getUint16(off);
-        off += size;
       }
-      if(off > buf.byteLength) return null;
+      else if(marker === 0xDA || marker === 0xD9) return null;  // SOS/EOI: EXIF lives before this
+      off = end;
     }
     return null;
   }
 
-  function parseTIFF(tiff){
-    const v = new DataView(tiff);
-    if(tiff.byteLength < 8) return null;
-    const little = v.getUint16(0) === 0x4949;
-    const get16 = o => v.getUint16(o, little);
-    const get32 = o => v.getUint32(o, little);
-    if(get16(2) !== 0x002A) return null;
-    const ifd0 = get32(4);
-    const exif = { make:'', model:'', lens:'', iso:0, fnumber:0, exposureTime:0,
-      focalLength:0, dateTime:'', orientation:1, gpsLat:null, gpsLon:null };
-    parseIFD(tiff, v, ifd0, little, exif, 'main');
-    if(exif._exifPtr) parseIFD(tiff, v, exif._exifPtr, little, exif, 'exif');
-    delete exif._exifPtr;
-    return exif;
+  /* TIFF value decoding. Sizes per field type; rationals are 2x uint32. */
+  const TIFF_TYPE_SIZE = { 1:1, 2:1, 3:2, 4:4, 5:8, 6:1, 7:1, 8:2, 9:4, 10:8, 11:4, 12:8 };
+
+  function readValues(v, little, type, count, valField, byteLength){
+    const size = TIFF_TYPE_SIZE[type] || 1;
+    const total = size * count;
+    if(!(count > 0) || total <= 0) return null;
+    const base = total > 4 ? v.getUint32(valField, little) : valField;
+    if(!isFinite(base) || base < 0 || base + total > byteLength) return null;   // never read past the block
+    const out = new Array(count);
+    for(let i=0;i<count;i++){
+      const p = base + i*size;
+      switch(type){
+        case 2: case 1: case 6: case 7: out[i] = v.getUint8(p); break;              // ASCII / BYTE / UNDEFINED / SBYTE
+        case 3: out[i] = v.getUint16(p, little); break;                             // SHORT
+        case 8: out[i] = v.getInt16(p, little); break;                              // SSHORT
+        case 4: out[i] = v.getUint32(p, little); break;                             // LONG
+        case 9: out[i] = v.getInt32(p, little); break;                              // SLONG
+        case 5: { const d = v.getUint32(p+4, little); out[i] = d ? v.getUint32(p, little)/d : 0; break; }   // RATIONAL
+        case 10:{ const d = v.getInt32(p+4, little);  out[i] = d ? v.getInt32(p, little)/d : 0; break; }   // SRATIONAL
+        case 11: out[i] = v.getFloat(p, little); break;                             // FLOAT
+        case 12: out[i] = v.getDouble(p, little); break;                            // DOUBLE
+        default: out[i] = v.getUint8(p);
+      }
+    }
+    return out;
   }
 
-  function parseIFD(buf, v, off, little, exif, scope){
-    if(off >= buf.byteLength) return;
-    const get16 = o => v.getUint16(o, little);
-    const get32 = o => v.getUint32(o, little);
-    const n = get16(off);
+  function asString(vals){
+    if(!vals) return '';
+    let s = '';
+    for(let i=0;i<vals.length;i++){ const c = vals[i]; if(c === 0) break; s += String.fromCharCode(c); }
+    return s.replace(/\0+$/,'').trim();
+  }
+  function asNumber(vals){ return vals && vals.length ? Number(vals[0]) || 0 : 0; }
+
+  function parseTIFF(tiff){
+    try{
+      if(!tiff || tiff.byteLength < 8) return null;
+      const v = new DataView(tiff);
+      const little = v.getUint16(0) === 0x4949;
+      if(!(little || v.getUint16(0) === 0x4D4D)) return null;
+      if(v.getUint16(2, little) !== 0x002A) return null;            // TIFF magic
+      const exif = { make:'', model:'', lens:'', iso:0, fnumber:0, exposureTime:0, focalLength:0,
+                     focalLength35:0, exposureBias:0, flash:false, dateTime:'', orientation:1,
+                     gpsLat:null, gpsLon:null, gpsAlt:null };
+      const ifd0 = v.getUint32(4, little);
+      const ptrs = {};
+      parseIFD(v, tiff.byteLength, little, ifd0, exif, 'main', ptrs);
+      if(ptrs.exifIFD != null) parseIFD(v, tiff.byteLength, little, ptrs.exifIFD, exif, 'exif', ptrs);
+      if(ptrs.gpsIFD  != null) parseGPS(v, tiff.byteLength, little, ptrs.gpsIFD, exif);
+      return exif;
+    }catch(e){ return null; }
+  }
+
+  function parseIFD(v, byteLength, little, off, exif, scope, ptrs){
+    if(off < 2 || off + 2 > byteLength) return;
+    const n = v.getUint16(off, little);
+    const rd = (type, count, valField) => readValues(v, little, type, count, valField, byteLength);
     for(let i=0;i<n;i++){
       const e = off + 2 + i*12;
-      const tag = get16(e);
-      const type = get16(e+2);
-      const cnt  = get32(e+4);
-      const valOff = e+8;
-      function readStr(){
-        const o = cnt>4 ? get32(valOff) : valOff;
-        let s='';
-        for(let j=0;j<cnt;j++){ const c = v.getUint8(o+j); if(c===0) break; s += String.fromCharCode(c); }
-        return s;
-      }
-      function readU16(){ return cnt>1 ? get32(valOff) : v.getUint16(valOff, little); }
-      if(tag === 0x010F && scope==='main') exif.make = readStr().trim();
-      if(tag === 0x0110 && scope==='main') exif.model = readStr().trim();
-      if(tag === 0x8769 && scope==='main') exif._exifPtr = get32(valOff);
-      if(tag === 0x8827 && scope==='exif') exif.iso = readU16();
-      if(tag === 0x829D && scope==='exif') exif.fnumber = v.getUint16(valOff, little) / (type===5?256:1);
-      if(tag === 0x829A && scope==='exif'){
-        exif.exposureTime = v.getUint32(valOff, little) / (type===5?65536:1);
-        if(exif.exposureTime<=0) exif.exposureTime = 1/Math.max(1, get32(valOff));
-      }
-      if(tag === 0x920A && scope==='exif') exif.focalLength = v.getUint32(valOff, little) / (type===5?65536:1);
-      if(tag === 0x9003 || tag === 0x0132) exif.dateTime = readStr().trim();
-      if(tag === 0x0112) exif.orientation = get16(valOff);
-      // GPS sub-IFD
-      if(tag === 0x8825 && scope==='main'){
-        const gpsOff = get32(valOff);
-        parseGPS(buf, v, gpsOff, little, exif);
-      }
+      if(e + 12 > byteLength) return;
+      const tag  = v.getUint16(e, little);
+      const type = v.getUint16(e+2, little);
+      const cnt  = v.getUint32(e+4, little);
+      const val  = e + 8;
+      if(tag === 0x010F && scope==='main') exif.make = asString(rd(type, cnt, val));
+      else if(tag === 0x0110 && scope==='main') exif.model = asString(rd(type, cnt, val));
+      else if(tag === 0x0112 && scope==='main') exif.orientation = asNumber(rd(type, cnt, val)) || 1;
+      else if(tag === 0x8769 && scope==='main') ptrs.exifIFD = v.getUint32(val, little);
+      else if(tag === 0x8825 && scope==='main') ptrs.gpsIFD  = v.getUint32(val, little);
+      else if(tag === 0x8827) exif.iso = asNumber(rd(type, cnt, val));
+      else if(tag === 0x829D) exif.fnumber = asNumber(rd(type, cnt, val));
+      else if(tag === 0x829A) exif.exposureTime = asNumber(rd(type, cnt, val));
+      else if(tag === 0x920A) exif.focalLength = asNumber(rd(type, cnt, val));
+      else if(tag === 0xA405) exif.focalLength35 = asNumber(rd(type, cnt, val));
+      else if(tag === 0x9204) exif.exposureBias = asNumber(rd(type, cnt, val));
+      else if(tag === 0x9209) exif.flash = (asNumber(rd(type, cnt, val)) & 1) === 1;
+      else if(tag === 0xA434) exif.lens = asString(rd(type, cnt, val));
+      else if(tag === 0x9003 || tag === 0x0132) exif.dateTime = asString(rd(type, cnt, val));
     }
   }
-  function parseGPS(buf, v, off, little, exif){
-    if(off >= buf.byteLength) return;
-    const get16 = o => v.getUint16(o, little);
-    const get32 = o => v.getUint32(o, little);
-    const n = get16(off);
-    let lat=[null,null,null], latRef='', lon=[null,null,null], lonRef='';
+
+  function dmsToDeg(v){ return (v[0] || 0) + (v[1] || 0)/60 + (v[2] || 0)/3600; }
+
+  function parseGPS(v, byteLength, little, off, exif){
+    if(off < 2 || off + 2 > byteLength) return;
+    const n = v.getUint16(off, little);
+    const rd = (type, count, valField) => readValues(v, little, type, count, valField, byteLength);
+    let lat=null, lon=null, latRef='N', lonRef='E', alt=null, altRef=0;
     for(let i=0;i<n;i++){
       const e = off + 2 + i*12;
-      const tag = get16(e);
-      const type = get16(e+2);
-      const cnt  = get32(e+4);
-      const valOff = e+8;
-      function rational(idx){
-          const o = cnt*8 > 8 ? get32(valOff) + idx*8 : valOff + idx*8;
-          return v.getUint32(o, little) / v.getUint32(o+4, little);
-        }
-      if(tag === 0x0002){ lat[0]=rational(0); lat[1]=rational(1); lat[2]=rational(2); }
-      if(tag === 0x0001) latRef = String.fromCharCode(v.getUint8(valOff));
-      if(tag === 0x0004){ lon[0]=rational(0); lon[1]=rational(1); lon[2]=rational(2); }
-      if(tag === 0x0003) lonRef = String.fromCharCode(v.getUint8(valOff));
+      if(e + 12 > byteLength) return;
+      const tag  = v.getUint16(e, little);
+      const type = v.getUint16(e+2, little);
+      const cnt  = v.getUint32(e+4, little);
+      const val  = e + 8;
+      if(tag === 0x0001) latRef = (asString(rd(type, cnt, val)) || 'N').charAt(0).toUpperCase();
+      else if(tag === 0x0002){ const a = rd(type, cnt, val); if(a && a.length>=1) lat = dmsToDeg(a); }
+      else if(tag === 0x0003) lonRef = (asString(rd(type, cnt, val)) || 'E').charAt(0).toUpperCase();
+      else if(tag === 0x0004){ const a = rd(type, cnt, val); if(a && a.length>=1) lon = dmsToDeg(a); }
+      else if(tag === 0x0005) altRef = asNumber(rd(type, cnt, val));
+      else if(tag === 0x0006) alt = asNumber(rd(type, cnt, val));
     }
-    function dec(a){ return a[0] + a[1]/60 + a[2]/3600; }
-    if(lat[0]!=null) exif.gpsLat = (latRef==='S'?-1:1) * dec(lat);
-    if(lon[0]!=null) exif.gpsLon = (lonRef==='W'?-1:1) * dec(lon);
+    if(lat != null) exif.gpsLat = (latRef === 'S' ? -1 : 1) * lat;
+    if(lon != null) exif.gpsLon = (lonRef === 'W' ? -1 : 1) * lon;
+    if(alt != null) exif.gpsAlt = (altRef === 1 ? -1 : 1) * alt;
+  }
+
+  /* Human-readable camera / capture line, e.g. "FUJIFILM X-T5 · ISO 1600 · 23mm". */
+  function exifSummary(exif){
+    if(!exif) return '';
+    const parts = [];
+    const cam = [exif.make, exif.model].filter(Boolean).join(' ').trim();
+    if(cam) parts.push(cam);
+    if(exif.iso) parts.push('ISO ' + exif.iso);
+    if(exif.focalLength) parts.push(Math.round(exif.focalLength*10)/10 + 'mm');
+    if(exif.fnumber) parts.push('f/' + (Math.round(exif.fnumber*10)/10));
+    if(exif.exposureTime > 0 && exif.exposureTime < 1) parts.push('1/' + Math.round(1/exif.exposureTime) + 's');
+    else if(exif.exposureTime >= 1) parts.push(Math.round(exif.exposureTime*100)/100 + 's');
+    return parts.join(' · ');
   }
 
   /* -------- Pixel scene analysis (cheap, downsampled) -------- */
@@ -204,6 +252,9 @@
   global.FUJI = global.FUJI || {};
   global.FUJI.context = {
     readEXIF,
+    parseEXIFBuffer,
+    parseTIFF,
+    exifSummary,
     analyzeScene,
     autoAdjust,
     /* matches a camera body to known Fuji X series */
