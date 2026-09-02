@@ -6,15 +6,33 @@
 
   function hslDefault(){ return { hue:{r:0,o:0,y:0,g:0,c:0,b:0,m:0,p:0}, sat:{r:0,o:0,y:0,g:0,c:0,b:0,m:0,p:0}, luma:{r:0,o:0,y:0,g:0,c:0,b:0,m:0,p:0} }; }
 
+  function fujiDefault(){
+    return {
+      dr: 'auto',                 // auto | 100 | 200 | 400
+      highlightTone: 0,           // -2 .. +4
+      shadowTone: 0,              // -2 .. +4
+      color: 0,                   // -4 .. +4
+      sharpness: 0,               // -4 .. +4
+      hNR: 0,                     // -4 .. +4 (high ISO NR)
+      grainEffect: 'off',         // off | weak | strong
+      grainSize: 'small',         // small | large
+      chromeFx: 'off',            // off | weak | strong (Color Chrome Effect)
+      chromeFxBlue: 'off',        // off | weak | strong (Color Chrome FX Blue)
+      clarity: 0,                 // -5 .. +5
+      wbMode: 'auto'              // auto | daylight | cloudy | shade | tungsten | fluorescent | flash
+    };
+  }
+
   function defaultState(){
     return {
-      profileId: "proviasoft",
+      profileId: "fuji-provia",
       film: { intensity: 1.0, grain: 0, grainSize: 0.5, grainStrength: 0.5, halation: 0, bloom: 0 },
       vignette: 0,
       light: { exposure:0, contrast:0, highlights:0, shadows:0, whites:0, blacks:0 },
       color: { temperature:0, tint:0, vibrance:0, saturation:0, hsl: hslDefault() },
       grade: { shadowHue:0.5, shadowSat:0, highlightHue:0.5, highlightSat:0, balance:0.5 },
-      detail: { texture:0, clarity:0, sharp:0, noise:0, dehaze:0 }
+      detail: { texture:0, clarity:0, sharp:0, noise:0, dehaze:0 },
+      fuji: fujiDefault()
     };
   }
 
@@ -91,6 +109,7 @@
 
   global.FUJI = global.FUJI || {};
   global.FUJI.defaultState = defaultState;
+  global.FUJI.fujiDefault = fujiDefault;
   global.FUJI.deepClone = deepClone;
   global.FUJI.State = State;
 })(typeof window!=="undefined"?window:globalThis);

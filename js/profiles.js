@@ -36,7 +36,270 @@
   const VINTAGE = crv(P(0,0.05),P(0.15,0.2),P(0.3,0.33),P(0.5,0.5),P(0.7,0.65),P(0.85,0.8),P(1,0.93));
   const PURE    = crv(P(0,0),P(0.15,0.2),P(0.3,0.36),P(0.5,0.5),P(0.7,0.64),P(0.85,0.8),P(1,1));
 
-  /* ================= PROFILES ================= */
+  /* ================= REAL FUJIFILM FILM SIMULATIONS =================
+     Hand-tuned recreations of Fujifilm's classic film simulation
+     characteristics (tone, color response, grain, halation). No
+     proprietary LUTs — first-principles curve/matrix recipes only. */
+
+  /* Provia — accurate, slightly saturated standard slide */
+  def({
+    id:"fuji-provia", name:"Provia", sim:true, fujiSim:"provia",
+    type:"Simulation", tagline:"Standard balanced transparency",
+    swatch:"#4a8f7a",
+    engine:{
+      matrix: mul( S(1.06), mul( hueRot(-1), DIAG(1.0,1.0,1.0) ) ),
+      channelCurves: [ SOFT_S, SOFT_S, SOFT_S ],
+      lumaCurve: SOFT_S, saturation:1.06, exposure:0.01,
+      grainAmt:0.35, grainSize:0.5, halation:0.04, bloom:0.0, vignette:0.10,
+      split:{ sh:0.5, ss:0.05, hh:0.5, hs:0.04 }, vibrance:0.05
+    }
+  });
+
+  /* Velvia — vivid saturated landscape chrome */
+  def({
+    id:"fuji-velvia", name:"Velvia", sim:true, fujiSim:"velvia",
+    type:"Simulation", tagline:"Vivid saturated slide film",
+    swatch:"#c4453a",
+    engine:{
+      matrix: mul( S(1.28), mul( hueRot(-6), DIAG(1.03,1.02,1.05) ) ),
+      channelCurves: [ STRONG_S, STRONG_S, STRONG_S ],
+      lumaCurve: STRONG_S, saturation:1.28, exposure:-0.02,
+      grainAmt:0.45, grainSize:0.55, halation:0.04, bloom:0.01, vignette:0.18,
+      split:{ sh:0.58, ss:0.12, hh:0.08, hs:0.08 }, vibrance:0.20
+    }
+  });
+
+  /* Velvia Vivid — Fujifilm's punchier Vivid variant */
+  def({
+    id:"fuji-velvia-vivid", name:"Velvia Vivid", sim:true, fujiSim:"velvia-vivid",
+    type:"Simulation", tagline:"Extra punchy vivid chrome",
+    swatch:"#b23333",
+    engine:{
+      matrix: mul( S(1.36), mul( hueRot(-7), DIAG(1.04,1.02,1.06) ) ),
+      channelCurves: [ STRONG_S, STRONG_S, STRONG_S ],
+      lumaCurve: STRONG_S, saturation:1.36, exposure:-0.03,
+      grainAmt:0.4, grainSize:0.5, halation:0.03, bloom:0.01, vignette:0.20,
+      split:{ sh:0.55, ss:0.10, hh:0.08, hs:0.10 }, vibrance:0.25
+    }
+  });
+
+  /* Astia — soft pastel portrait slide */
+  def({
+    id:"fuji-astia", name:"Astia", sim:true, fujiSim:"astia",
+    type:"Simulation", tagline:"Soft portrait transparency",
+    swatch:"#d99a7a",
+    engine:{
+      matrix: mul( S(0.94), mul( hueRot(1), DIAG(1.05,1.0,0.99) ) ),
+      channelCurves: [ crv(P(0,0.04),P(0.3,0.34),P(0.5,0.51),P(0.7,0.69),P(1,0.96)),
+                       crv(P(0,0.03),P(0.3,0.32),P(0.5,0.5),P(0.7,0.69),P(1,0.98)),
+                       crv(P(0,0.02),P(0.3,0.31),P(0.5,0.49),P(0.7,0.67),P(1,0.98)) ],
+      lumaCurve: FLAT, saturation:0.94, exposure:0.04,
+      grainAmt:0.3, grainSize:0.5, halation:0.08, bloom:0.03, vignette:0.12,
+      split:{ sh:0.15, ss:0.08, hh:0.4, hs:0.09 }, vibrance:0.12
+    }
+  });
+
+  /* Classic Chrome — muted matte documentary */
+  def({
+    id:"fuji-classic-chrome", name:"Classic Chrome", sim:true, fujiSim:"classic-chrome",
+    type:"Simulation", tagline:"Muted matte documentary look",
+    swatch:"#c9b08a",
+    engine:{
+      matrix: mul( S(0.72), mul( hueRot(2), DIAG(1.05,0.99,0.95) ) ),
+      channelCurves: [ crv(P(0,0.05),P(0.3,0.33),P(0.5,0.5),P(0.7,0.66),P(1,0.92)),
+                       crv(P(0,0.04),P(0.3,0.32),P(0.5,0.5),P(0.7,0.67),P(1,0.94)),
+                       crv(P(0,0.02),P(0.3,0.30),P(0.5,0.49),P(0.7,0.67),P(1,0.95)) ],
+      lumaCurve: FLAT, saturation:0.72, exposure:0.05,
+      grainAmt:0.5, grainSize:0.5, halation:0.12, bloom:0.06, vignette:0.10,
+      split:{ sh:0.12, ss:0.12, hh:0.08, hs:0.10 }, vibrance:-0.08
+    }
+  });
+
+  /* Classic Negative — rich contrast, warm highs, deep cool lows */
+  def({
+    id:"fuji-classic-neg", name:"Classic Negative", sim:true, fujiSim:"classic-negative",
+    type:"Simulation", tagline:"Rich nostalgic negative",
+    swatch:"#6a8f5c",
+    engine:{
+      matrix: mul( S(0.85), mul( hueRot(-3), DIAG(1.04,1.05,0.97) ) ),
+      channelCurves: [ crv(P(0,0.02),P(0.3,0.31),P(0.5,0.49),P(0.7,0.68),P(1,0.93)),
+                       crv(P(0,0.03),P(0.3,0.33),P(0.5,0.51),P(0.7,0.71),P(1,0.98)),
+                       crv(P(0,0.00),P(0.3,0.28),P(0.5,0.46),P(0.7,0.65),P(1,0.94)) ],
+      lumaCurve: LIFTED, saturation:0.85, exposure:0.02,
+      grainAmt:0.5, grainSize:0.55, halation:0.10, bloom:0.02, vignette:0.16,
+      split:{ sh:0.62, ss:0.18, hh:0.05, hs:0.08 }, vibrance:0.06
+    }
+  });
+
+  /* Eterna — flat cinematic neutral */
+  def({
+    id:"fuji-eterna", name:"Eterna", sim:true, fujiSim:"eterna",
+    type:"Simulation", tagline:"Flat cinematic neutral",
+    swatch:"#7d9294",
+    engine:{
+      matrix: mul( S(0.70), mul( hueRot(3), DIAG(0.99,1.02,1.0) ) ),
+      channelCurves: [ FLAT, FLAT, FLAT ],
+      lumaCurve: FLAT, saturation:0.70, exposure:0.06,
+      grainAmt:0.7, grainSize:0.5, halation:0.02, bloom:0.02, vignette:0.10,
+      split:{ sh:0.5, ss:0.10, hh:0.5, hs:0.05 }, vibrance:-0.05
+    }
+  });
+
+  /* Eterna Bleach Bypass — desaturated high-contrast */
+  def({
+    id:"fuji-eterna-bb", name:"Eterna Bleach Bypass", sim:true, fujiSim:"eterna-bleach-bypass",
+    type:"Simulation", tagline:"High-contrast cinematic",
+    swatch:"#a4a59e",
+    engine:{
+      matrix: mul( S(0.55), mul( hueRot(-2), DIAG(1.02,1.0,0.96) ) ),
+      channelCurves: [ HARD_NIC, HARD_NIC, HARD_NIC ],
+      lumaCurve: HARD_NIC, saturation:0.55, exposure:0.04,
+      grainAmt:0.85, grainSize:0.6, halation:0.05, bloom:0.02, vignette:0.20,
+      split:{ sh:0.68, ss:0.16, hh:0.06, hs:0.12 }, vibrance:-0.10
+    }
+  });
+
+  /* Nostalgic Neg — warm amber faded */
+  def({
+    id:"fuji-nostalgic-neg", name:"Nostalgic Neg.", sim:true, fujiSim:"nostalgic-neg",
+    type:"Simulation", tagline:"Warm amber faded negative",
+    swatch:"#c9934f",
+    engine:{
+      matrix: mul( S(0.80), mul( hueRot(3), DIAG(1.09,1.02,0.90) ) ),
+      channelCurves: [ crv(P(0,0.06),P(0.3,0.34),P(0.5,0.51),P(0.7,0.68),P(1,0.90)),
+                       crv(P(0,0.05),P(0.3,0.33),P(0.5,0.50),P(0.7,0.68),P(1,0.93)),
+                       crv(P(0,0.02),P(0.3,0.29),P(0.5,0.47),P(0.7,0.66),P(1,0.94)) ],
+      lumaCurve: VINTAGE, saturation:0.80, exposure:0.07,
+      grainAmt:0.6, grainSize:0.6, halation:0.30, bloom:0.08, vignette:0.18,
+      split:{ sh:0.55, ss:0.22, hh:0.05, hs:0.10 }, vibrance:-0.05
+    }
+  });
+
+  /* Reala Ace — accurate, fine, slightly neutralized */
+  def({
+    id:"fuji-reala-ace", name:"Reala Ace", sim:true, fujiSim:"reala-ace",
+    type:"Simulation", tagline:"Accurate fine neutral",
+    swatch:"#8f9a6c",
+    engine:{
+      matrix: mul( S(0.96), mul( hueRot(-2), DIAG(1.02,1.04,0.98) ) ),
+      channelCurves: [ SOFT_S, SOFT_S, SOFT_S ],
+      lumaCurve: SOFT_S, saturation:0.96, exposure:0.02,
+      grainAmt:0.35, grainSize:0.5, halation:0.05, bloom:0.0, vignette:0.10,
+      split:{ sh:0.58, ss:0.06, hh:0.45, hs:0.04 }, vibrance:0.06
+    }
+  });
+
+  /* Pro Neg Hi — punchy portrait */
+  def({
+    id:"fuji-pro-neg-hi", name:"Pro Neg. Hi", sim:true, fujiSim:"pro-neg-hi",
+    type:"Simulation", tagline:"Punchy portrait skin",
+    swatch:"#d49a6e",
+    engine:{
+      matrix: mul( S(1.04), mul( hueRot(-2), DIAG(1.08,1.01,0.95) ) ),
+      channelCurves: [ SOFT_S, SOFT_S, SOFT_S ],
+      lumaCurve: SOFT_S, saturation:1.04, exposure:0.04,
+      grainAmt:0.3, grainSize:0.5, halation:0.10, bloom:0.02, vignette:0.12,
+      split:{ sh:0.18, ss:0.10, hh:0.04, hs:0.06 }, vibrance:0.10
+    }
+  });
+
+  /* Pro Neg Std — soft neutral portrait */
+  def({
+    id:"fuji-pro-neg-std", name:"Pro Neg. Std", sim:true, fujiSim:"pro-neg-std",
+    type:"Simulation", tagline:"Soft neutral portrait",
+    swatch:"#caa78a",
+    engine:{
+      matrix: mul( S(0.94), mul( hueRot(0), DIAG(1.04,1.0,0.97) ) ),
+      channelCurves: [ crv(P(0,0.03),P(0.3,0.33),P(0.5,0.51),P(0.7,0.69),P(1,0.96)),
+                       crv(P(0,0.02),P(0.3,0.31),P(0.5,0.5),P(0.7,0.7),P(1,0.99)),
+                       crv(P(0,0.02),P(0.3,0.31),P(0.5,0.49),P(0.7,0.68),P(1,0.99)) ],
+      lumaCurve: FLAT, saturation:0.94, exposure:0.05,
+      grainAmt:0.25, grainSize:0.5, halation:0.08, bloom:0.02, vignette:0.11,
+      split:{ sh:0.08, ss:0.06, hh:0.05, hs:0.05 }, vibrance:0.08
+    }
+  });
+
+  /* Monochrome — clean neutral mono */
+  def({
+    id:"fuji-mono", name:"Monochrome", sim:true, fujiSim:"monochrome", bw:true,
+    type:"Simulation", tagline:"Clean neutral monochrome",
+    swatch:"#8a8a8e",
+    engine:{
+      matrix: S(0.0),
+      channelCurves: [ PURE, PURE, PURE ],
+      lumaCurve: SOFT_S, saturation:0.0, exposure:0.02,
+      grainAmt:0.8, grainSize:0.5, halation:0.0, bloom:0.0, vignette:0.14,
+      split:{ sh:0.7, ss:0.05, hh:0.05, hs:0.05 }, vibrance:0
+    }
+  });
+
+  /* Acros +R / +Y / +G — fine-grain mono with filters */
+  def({
+    id:"fuji-acros-r", name:"Acros +R", sim:true, fujiSim:"acros-r", bw:true,
+    type:"Simulation", tagline:"Acros with red filter",
+    swatch:"#7a4040",
+    engine:{
+      matrix: S(0.0),
+      channelCurves: [
+        crv(P(0,0.02),P(0.3,0.20),P(0.5,0.42),P(0.7,0.70),P(1,0.99)),
+        crv(P(0,0.04),P(0.3,0.30),P(0.5,0.50),P(0.7,0.70),P(1,0.99)),
+        crv(P(0,0.06),P(0.3,0.40),P(0.5,0.58),P(0.7,0.74),P(1,1.0))
+      ],
+      lumaCurve: SOFT_S, saturation:0.0, exposure:0.02,
+      grainAmt:0.85, grainSize:0.5, halation:0.0, bloom:0.0, vignette:0.16,
+      split:{ sh:0.7, ss:0.04, hh:0.05, hs:0.02 }, vibrance:0
+    }
+  });
+  def({
+    id:"fuji-acros-y", name:"Acros +Y", sim:true, fujiSim:"acros-y", bw:true,
+    type:"Simulation", tagline:"Acros with yellow filter",
+    swatch:"#9a8a55",
+    engine:{
+      matrix: S(0.0),
+      channelCurves: [
+        crv(P(0,0.02),P(0.3,0.26),P(0.5,0.46),P(0.7,0.72),P(1,0.99)),
+        crv(P(0,0.03),P(0.3,0.32),P(0.5,0.50),P(0.7,0.72),P(1,0.99)),
+        crv(P(0,0.04),P(0.3,0.36),P(0.5,0.54),P(0.7,0.72),P(1,1.0))
+      ],
+      lumaCurve: SOFT_S, saturation:0.0, exposure:0.02,
+      grainAmt:0.85, grainSize:0.5, halation:0.0, bloom:0.0, vignette:0.14,
+      split:{ sh:0.5, ss:0.04, hh:0.05, hs:0.02 }, vibrance:0
+    }
+  });
+  def({
+    id:"fuji-acros-g", name:"Acros +G", sim:true, fujiSim:"acros-g", bw:true,
+    type:"Simulation", tagline:"Acros with green filter",
+    swatch:"#5d8060",
+    engine:{
+      matrix: S(0.0),
+      channelCurves: [
+        crv(P(0,0.02),P(0.3,0.28),P(0.5,0.46),P(0.7,0.70),P(1,0.99)),
+        crv(P(0,0.04),P(0.3,0.36),P(0.5,0.56),P(0.7,0.76),P(1,1.0)),
+        crv(P(0,0.03),P(0.3,0.30),P(0.5,0.48),P(0.7,0.70),P(1,0.99))
+      ],
+      lumaCurve: SOFT_S, saturation:0.0, exposure:0.02,
+      grainAmt:0.85, grainSize:0.5, halation:0.0, bloom:0.0, vignette:0.14,
+      split:{ sh:0.3, ss:0.06, hh:0.55, hs:0.02 }, vibrance:0
+    }
+  });
+
+  /* Sepia — warm tinted mono */
+  def({
+    id:"fuji-sepia", name:"Sepia", sim:true, fujiSim:"sepia", bw:true,
+    type:"Simulation", tagline:"Warm sepia tint",
+    swatch:"#a6824a",
+    engine:{
+      matrix: mul( S(0.0), mul( hueRot(-8), DIAG(1.18,1.06,0.86) ) ),
+      channelCurves: [ VINTAGE, VINTAGE, VINTAGE ],
+      lumaCurve: VINTAGE, saturation:0.55, exposure:0.04,
+      grainAmt:0.7, grainSize:0.6, halation:0.12, bloom:0.04, vignette:0.18,
+      split:{ sh:0.12, ss:0.16, hh:0.10, hs:0.08 }, vibrance:0
+    }
+  });
+
+  /* ================= LEGACY INSPIRED PROFILES =================
+     Kept for backward compatibility with saved recipes. Hidden from
+     the picker — the real Fujifilm simulations above are primary. */
 
   /* 1. Evergreen 400 — rich negative :: Classic Negative style */
   def({
@@ -365,5 +628,7 @@
   /* importable into global namespace */
   global.FUJI.profiles = PROFILES;
   global.FUJI.getProfile = function(id){ return PROFILES.find(p=>p.id===id)||PROFILES[0]; };
+  global.FUJI.simProfiles = function(){ return PROFILES.filter(p=>p.sim); };
+  global.FUJI.legacyProfiles = function(){ return PROFILES.filter(p=>!p.sim); };
 
 })(typeof window!=="undefined"?window:globalThis);

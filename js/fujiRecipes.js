@@ -87,32 +87,46 @@
     return 0;
   }
 
-  /* ---- Film Simulation → Profile ID mapping ---- */
+  /* ---- Film Simulation → Profile ID mapping (real sims) ---- */
   const SIM_MAP = {
-    'provia': 'proviasoft',
-    'velvia': 'velvet50',
-    'astia': 'astiagentle',
-    'classic-chrome': 'chromedust',
-    'classic-negative': 'evergreen400',
-    'nostalgic-neg': 'nostalgia',
-    'eterna': 'neostage',
-    'eterna-bleach-bypass': 'eternableach',
-    'acros': 'monomodern',
-    'acros-r': 'acros_r',
-    'acros-y': 'acros_y',
-    'acros-g': 'acros_g',
-    'monochrome': 'monomodern',
-    'reala-ace': 'realaauto',
-    'pro-neg-hi': 'proneghi',
-    'pro-neg-std': 'pronegstd',
-    'pro-neg': 'proneg',
-    'sepia': 'sepiawarm'
+    'provia': 'fuji-provia',
+    'velvia': 'fuji-velvia',
+    'velvia-vivid': 'fuji-velvia-vivid',
+    'astia': 'fuji-astia',
+    'classic-chrome': 'fuji-classic-chrome',
+    'classic-negative': 'fuji-classic-neg',
+    'nostalgic-neg': 'fuji-nostalgic-neg',
+    'eterna': 'fuji-eterna',
+    'eterna-bleach-bypass': 'fuji-eterna-bb',
+    'acros': 'fuji-acros-r',
+    'acros-r': 'fuji-acros-r',
+    'acros-y': 'fuji-acros-y',
+    'acros-g': 'fuji-acros-g',
+    'monochrome': 'fuji-mono',
+    'reala-ace': 'fuji-reala-ace',
+    'pro-neg-hi': 'fuji-pro-neg-hi',
+    'pro-neg-std': 'fuji-pro-neg-std',
+    'sepia': 'fuji-sepia'
   };
 
-  /* ---- Convert a Fujifilm recipe to app state ---- */
+  /* ---- WB preset name → engine mode ---- */
+  function wbModeFromString(s){
+    const v = String(s||'').toLowerCase();
+    if(v.indexOf('cloud') >= 0) return 'cloudy';
+    if(v.indexOf('shade') >= 0) return 'shade';
+    if(v.indexOf('tungsten') >= 0) return 'tungsten';
+    if(v.indexOf('fluoresc') >= 0 || v.indexOf('fluores') >= 0) return 'fluorescent';
+    if(v.indexOf('flash') >= 0) return 'flash';
+    return 'auto';
+  }
+
+  /* ---- Convert a Fujifilm recipe to app state ----
+     The recipe's raw camera settings are carried in `state.fuji` (the
+     engine's applyFuji computes every tone/color/detail contribution),
+     while `profileId` selects the real film simulation. WB shift feeds
+     the manual temp/tint sliders; preset feeds state.fuji.wbMode. */
   function convertRecipe(fuji) {
-    const profileId = SIM_MAP[fuji.simulation] || 'proviasoft';
-    const grain = grainToApp(fuji.grainEffect, fuji.grainSize);
+    const profileId = SIM_MAP[fuji.simulation] || 'fuji-provia';
     const temp = wbShiftToTemp(fuji.wbShiftR || 0, fuji.wbShiftB || 0);
     const tint = wbShiftToTint(fuji.wbShiftR || 0, fuji.wbShiftB || 0);
 
@@ -120,45 +134,38 @@
       profileId: profileId,
       film: {
         intensity: 1.0,
-        grain: grain.grain,
-        grainSize: grain.grainSize,
-        grainStrength: grain.grainStrength,
+        grain: 0,
+        grainSize: 0.5,
+        grainStrength: 0.5,
         halation: 0.05,
         bloom: 0.02
       },
-      vignette: 0.12,
-      light: {
-        exposure: 0,
-        contrast: 0,
-        highlights: drToHighlights(fuji.dynamicRange || 100) + fujiHighlightToApp(fuji.highlight || 0),
-        shadows: drToShadows(fuji.dynamicRange || 100) + fujiShadowToApp(fuji.shadow || 0),
-        whites: 0,
-        blacks: 0
-      },
+      vignette: 0.10,
+      light: { exposure: 0, contrast: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0 },
       color: {
         temperature: temp,
         tint: tint,
-        vibrance: chromeEffectToVibrance(fuji.colorChromeEffect) + (fuji.vibranceBoost || 0),
-        saturation: fujiColorToApp(fuji.color || 0),
-        hsl: {
-          hue: { r:0, g:0, b:0, m:0, y:0, c:0 },
-          sat: { r:0, g:0, b:0, m:0, y:0, c: chromeFxBlueToSat(fuji.colorChromeFxBlue) },
-          luma: { r:0, g:0, b:0, m:0, y:0, c:0 }
-        }
+        vibrance: 0,
+        saturation: 0,
+        hsl: { hue:{r:0,o:0,y:0,g:0,c:0,b:0,m:0,p:0},
+               sat:{r:0,o:0,y:0,g:0,c:0,b:0,m:0,p:0},
+               luma:{r:0,o:0,y:0,g:0,c:0,b:0,m:0,p:0} }
       },
-      grade: {
-        shadowHue: 0.5,
-        shadowSat: 0,
-        highlightHue: 0.5,
-        highlightSat: 0,
-        balance: 0.5
-      },
-      detail: {
-        texture: 0,
-        clarity: fujiClarityToApp(fuji.clarity || 0),
-        sharp: fujiSharpToApp(fuji.sharpness || 0),
-        noise: fujiNRToApp(fuji.highISONR || 0),
-        dehaze: 0
+      grade: { shadowHue: 0.5, shadowSat: 0, highlightHue: 0.5, highlightSat: 0, balance: 0.5 },
+      detail: { texture: 0, clarity: 0, sharp: 0, noise: 0, dehaze: 0 },
+      fuji: {
+        dr: fuji.dynamicRange || 'auto',
+        highlightTone: fuji.highlight != null ? fuji.highlight : 0,
+        shadowTone: fuji.shadow != null ? fuji.shadow : 0,
+        color: fuji.color != null ? fuji.color : 0,
+        sharpness: fuji.sharpness != null ? fuji.sharpness : 0,
+        hNR: fuji.highISONR != null ? fuji.highISONR : 0,
+        grainEffect: fuji.grainEffect || 'off',
+        grainSize: fuji.grainSize || 'small',
+        chromeFx: fuji.colorChromeEffect || 'off',
+        chromeFxBlue: fuji.colorChromeFxBlue || 'off',
+        clarity: fuji.clarity != null ? fuji.clarity : 0,
+        wbMode: wbModeFromString(fuji.whiteBalance)
       }
     };
   }
@@ -684,7 +691,9 @@
     }
   ];
 
-  /* ---- Convert all recipes to app state format ---- */
+  /* ---- Convert all recipes to app state format ----
+     `fujiSettings` carries the raw camera recipe (DR, WB shift, tone,
+     Color Chrome FX, grain, clarity …) for display/export. */
   const convertedRecipes = FUJI_RECIPES.map(r => ({
     id: r.id,
     name: r.name,
@@ -695,6 +704,7 @@
     camera: r.camera,
     category: r.category || 'general',
     scene: r.scene || [],
+    fujiSettings: r.fuji,
     state: convertRecipe(r.fuji)
   }));
 
@@ -749,23 +759,11 @@
     State.cur.film.halation = s.film.halation;
     State.cur.film.bloom = s.film.bloom;
     State.cur.vignette = s.vignette;
-    State.cur.light.exposure = s.light.exposure;
-    State.cur.light.contrast = s.light.contrast;
-    State.cur.light.highlights = s.light.highlights;
-    State.cur.light.shadows = s.light.shadows;
-    State.cur.light.whites = s.light.whites;
-    State.cur.light.blacks = s.light.blacks;
-    State.cur.color.temperature = s.color.temperature;
-    State.cur.color.tint = s.color.tint;
-    State.cur.color.vibrance = s.color.vibrance;
-    State.cur.color.saturation = s.color.saturation;
-    State.cur.color.hsl = JSON.parse(JSON.stringify(s.color.hsl));
+    State.cur.light = JSON.parse(JSON.stringify(s.light));
+    State.cur.color = JSON.parse(JSON.stringify(s.color));
     State.cur.grade = JSON.parse(JSON.stringify(s.grade));
-    State.cur.detail.texture = s.detail.texture;
-    State.cur.detail.clarity = s.detail.clarity;
-    State.cur.detail.sharp = s.detail.sharp;
-    State.cur.detail.noise = s.detail.noise;
-    State.cur.detail.dehaze = s.detail.dehaze;
+    State.cur.detail = JSON.parse(JSON.stringify(s.detail));
+    State.cur.fuji = JSON.parse(JSON.stringify(s.fuji || {}));
     State.commit(prev);
   }
 

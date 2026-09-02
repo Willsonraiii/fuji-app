@@ -45,8 +45,8 @@
   function uid(){ return "rc_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
   function normalize(state){
-    // to store only meaningful stored profile reference is enough — we keep the full
-    // adjustment state (excluding recipe-specific intensity).
+    // store the full adjustment state incl. Fuji camera-style settings
+    // (excluding recipe-specific intensity).
     const s = {
       profileId: state.profileId,
       film: deepClone(state.film),
@@ -54,7 +54,8 @@
       light: deepClone(state.light),
       color: deepClone(state.color),
       grade: deepClone(state.grade),
-      detail: deepClone(state.detail)
+      detail: deepClone(state.detail),
+      fuji: deepClone(state.fuji || {})
     };
     return s;
   }
@@ -126,6 +127,19 @@
         }
       }
     }
+    // Fuji camera-style settings: numeric values scale with intensity,
+    // enum values pass through at full strength.
+    State.cur.fuji = Object.assign({}, State.cur.fuji||{});
+    const fp = p.fuji||{};
+    for(const k of ["highlightTone","shadowTone","color","sharpness","hNR","clarity"]){
+      if(typeof fp[k]==="number") State.cur.fuji[k] = fp[k]*t;
+    }
+    if(fp.dr) State.cur.fuji.dr = fp.dr;
+    if(fp.grainEffect) State.cur.fuji.grainEffect = fp.grainEffect;
+    if(fp.grainSize) State.cur.fuji.grainSize = fp.grainSize;
+    if(fp.chromeFx) State.cur.fuji.chromeFx = fp.chromeFx;
+    if(fp.chromeFxBlue) State.cur.fuji.chromeFxBlue = fp.chromeFxBlue;
+    if(fp.wbMode) State.cur.fuji.wbMode = fp.wbMode;
     State.cur.film.grain = (p.film?.grain||0)*t;
     State.cur.film.halation = (p.film?.halation||0)*t;
     State.cur.film.bloom = (p.film?.bloom||0)*t;
